@@ -35,6 +35,11 @@
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+  // Reactive keys to force UI updates
+  $: scheduleKey = newBlock.daysMask;
+  $: alertKey = newAlert.daysMask;
+  $: editBlockKey = editingBlock?.daysMask ?? 0;
+
   // Alerts
   let alerts: any[] = [];
   let newAlert = {
@@ -142,7 +147,8 @@
   function toggleAlertDay(dayIndex: number) {
     const mask = 1 << dayIndex;
     newAlert.daysMask = newAlert.daysMask ^ mask;
-    newAlert = newAlert; // Force reactivity
+    // Force reactivity by creating a new reference
+    newAlert = { ...newAlert };
   }
 
   function isAlertDaySelected(dayIndex: number): boolean {
@@ -157,7 +163,8 @@
     } else if (preset === 'weekend') {
       newAlert.daysMask = 96;
     }
-    newAlert = newAlert; // Force reactivity
+    // Force reactivity by creating a new reference
+    newAlert = { ...newAlert };
   }
 
   function getDayMaskLabel(daysMask: number): string {
@@ -451,7 +458,8 @@
     if (!editingBlock) return;
     const mask = 1 << dayIndex;
     editingBlock.daysMask = editingBlock.daysMask ^ mask;
-    editingBlock = editingBlock; // Force reactivity
+    // Force reactivity by creating a new reference
+    editingBlock = { ...editingBlock };
   }
 
   function isEditBlockDaySelected(dayIndex: number): boolean {
@@ -488,7 +496,8 @@
   function toggleDay(dayIndex: number) {
     const mask = 1 << dayIndex;
     newBlock.daysMask = newBlock.daysMask ^ mask;
-    newBlock = newBlock; // Force reactivity
+    // Force reactivity by creating a new reference
+    newBlock = { ...newBlock };
   }
 
   function isDaySelected(dayIndex: number): boolean {
@@ -503,7 +512,8 @@
     } else if (preset === 'weekend') {
       newBlock.daysMask = 96; // Sat-Sun (bits 6-7)
     }
-    newBlock = newBlock; // Force reactivity
+    // Force reactivity by creating a new reference
+    newBlock = { ...newBlock };
   }
 
   async function deleteScheduleBlock(id: string) {
@@ -819,7 +829,7 @@
                 <button
                   type="button"
                   class="day-btn"
-                  class:selected={isDaySelected(i)}
+                  class:selected={(scheduleKey & (1 << i)) !== 0}
                   on:click={() => toggleDay(i)}
                 >
                   {day}
@@ -975,7 +985,7 @@
                   <button
                     type="button"
                     class="day-btn"
-                    class:selected={isEditBlockDaySelected(dayIdx)}
+                    class:selected={(editBlockKey & (1 << dayIdx)) !== 0}
                     on:click={() => toggleEditBlockDay(dayIdx)}
                   >
                     {day}
@@ -1042,7 +1052,7 @@
                 <button
                   type="button"
                   class="day-btn"
-                  class:selected={isAlertDaySelected(i)}
+                  class:selected={(alertKey & (1 << i)) !== 0}
                   on:click={() => toggleAlertDay(i)}
                 >
                   {day}
