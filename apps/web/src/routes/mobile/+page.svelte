@@ -17,6 +17,7 @@
   let currentTime = new Date();
   let timeInterval: ReturnType<typeof setInterval>;
   let processingHabits = new Set<string>();
+  let socketUnsubscribe: (() => void) | null = null;
 
   onMount(async () => {
     await loadHabits();
@@ -44,19 +45,19 @@
     }, 60000);
     
     // Listen for entry updates from other clients (e.g., dashboard)
-    const unsubscribe = socket.subscribe(($socket) => {
+    socketUnsubscribe = socket.subscribe(($socket) => {
       if ($socket) {
-        console.log('[Mobile] Setting up habit:entry-updated listener');
+        // Remove any existing listener first
+        $socket.off('habit:entry-updated');
+        
+        // Add the listener
         $socket.on('habit:entry-updated', async (data: { habitId: string; date: string }) => {
-          console.log('[Mobile] Received entry update for habit:', data.habitId);
           // Reload entries for the updated habit
           const entries = await loadEntriesForHabit(data.habitId);
-          console.log('[Mobile] Loaded new entries:', entries);
           // Create a completely new object to trigger Svelte reactivity
           const newEntries = { ...habitEntries };
           newEntries[data.habitId] = entries;
           habitEntries = newEntries;
-          console.log('[Mobile] Updated habitEntries, should trigger UI update');
         });
       }
     });
@@ -64,6 +65,7 @@
 
   onDestroy(() => {
     if (timeInterval) clearInterval(timeInterval);
+    if (socketUnsubscribe) socketUnsubscribe();
     if ($socket) {
       $socket.off('habit:entry-updated');
     }
@@ -129,6 +131,7 @@
     try {
       if (isResetting) {
         // Reset: delete the entry
+        console.log('📤 Mobile: Deleting habit', habitId, 'for', dateStr);
         const response = await fetch(`/api/habits/${habitId}/entries/${dateStr}`, {
           method: 'DELETE'
         });
@@ -137,9 +140,12 @@
           // Revert on error
           const entries = await loadEntriesForHabit(habitId);
           habitEntries = { ...habitEntries, [habitId]: entries };
+        } else {
+          console.log('📤 Mobile: Delete successful, server emitting socket event');
         }
       } else {
         // Increment: add timestamp
+        console.log('📤 Mobile: Completing habit', habitId, 'for', dateStr);
         const response = await fetch(`/api/habits/${habitId}/complete`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -150,6 +156,8 @@
           // Revert on error
           const entries = await loadEntriesForHabit(habitId);
           habitEntries = { ...habitEntries, [habitId]: entries };
+        } else {
+          console.log('📤 Mobile: Completion successful, server emitting socket event');
         }
       }
     } catch (error) {

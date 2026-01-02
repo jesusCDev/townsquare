@@ -19,20 +19,18 @@
   let currentTime = new Date();
   let timeInterval: ReturnType<typeof setInterval>;
 
+  let socketUnsubscribe: (() => void) | null = null;
+
   onMount(async () => {
-    console.log('[HabitTracker] Component mounted, loading habits...');
     await loadHabits();
     
     // Wait a tick for the store to update
     await new Promise(resolve => setTimeout(resolve, 0));
     
     const currentHabits = $habits;
-    console.log('[HabitTracker] Loaded habits:', currentHabits.length);
     
     if (currentHabits.length > 0) {
-      console.log('[HabitTracker] Loading entries for all habits...');
       const entryPromises = currentHabits.map(async habit => {
-        console.log(`[HabitTracker] Loading entries for habit: ${habit.name}`);
         const entries = await loadEntriesForHabit(habit.id);
         return { habitId: habit.id, entries };
       });
@@ -45,8 +43,6 @@
       });
       habitEntries = newEntries;
       entriesLoaded = true;
-      
-      console.log('[HabitTracker] All entries loaded:', habitEntries);
     }
     
     // Update current time every minute
@@ -55,19 +51,26 @@
     }, 60000);
     
     // Listen for entry updates from other clients (e.g., mobile)
-    const unsubscribe = socket.subscribe(($socket) => {
+    socketUnsubscribe = socket.subscribe(($socket) => {
       if ($socket) {
-        console.log('[HabitTracker] Setting up habit:entry-updated listener');
+        console.log('🔔 Socket listener registered on main page (ID:', $socket.id + ')');
+        
+        // Remove any existing listener first
+        $socket.off('habit:entry-updated');
+        
+        // Add the listener
         $socket.on('habit:entry-updated', async (data: { habitId: string; date: string }) => {
-          console.log('[HabitTracker] Received entry update for habit:', data.habitId);
+          console.log('🔔 Main page received update for habit:', data.habitId, 'date:', data.date);
+          
           // Reload entries for the updated habit
           const entries = await loadEntriesForHabit(data.habitId);
-          console.log('[HabitTracker] Loaded new entries:', entries);
+          
           // Create a completely new object to trigger Svelte reactivity
           const newEntries = { ...habitEntries };
           newEntries[data.habitId] = entries;
           habitEntries = newEntries;
-          console.log('[HabitTracker] Updated habitEntries, should trigger UI update');
+          
+          console.log('🔔 Main page UI updated with', entries.length, 'entries');
         });
       }
     });
@@ -75,6 +78,7 @@
 
   onDestroy(() => {
     if (timeInterval) clearInterval(timeInterval);
+    if (socketUnsubscribe) socketUnsubscribe();
     if ($socket) {
       $socket.off('habit:entry-updated');
     }
@@ -82,17 +86,12 @@
 
   async function loadEntriesForHabit(habitId: string): Promise<HabitEntry[]> {
     try {
-      console.log(`[loadEntries] Fetching entries for habit: ${habitId}`);
       const response = await fetch(`/api/habits/${habitId}/entries?days=30`);
       if (response.ok) {
         const data = await response.json();
-        const entries = data.entries || data; // Handle both {entries: [...]} and [...] formats
-        console.log(`[loadEntries] Got ${entries.length} entries for habit ${habitId}:`, entries);
-        return entries;
-      } else {
-        console.error(`[loadEntries] Failed to fetch entries for habit ${habitId}:`, response.status);
-        return [];
+        return data.entries || data; // Handle both {entries: [...]} and [...] formats
       }
+      return [];
     } catch (error) {
       console.error('[loadEntries] Error loading habit entries:', error);
       return [];
@@ -264,6 +263,9 @@
   }
 
   $: days = Array.from({ length: daysToShow }, (_, i) => subDays(new Date(), daysToShow - 1 - i));
+  
+  // Force reactivity when habitEntries changes
+  $: habitsWithEntries = $habits.map(h => ({ ...h, _entriesHash: JSON.stringify(habitEntries[h.id]) }));
 </script>
 
 <div class="habit-tracker glass">
@@ -296,7 +298,7 @@
         <div class="stats-col"></div>
       </div>
 
-      {#each $habits as habit (habit.id)}
+      {#each habitsWithEntries as habit (habit.id)}
         {@const streak = calculateStreak(habit.id)}
         {@const overdue = isHabitOverdue(habit)}
         <div 
