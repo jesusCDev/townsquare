@@ -49,7 +49,13 @@ socket.subscribe(($socket) => {
     });
 
     $socket.on('habit:updated', () => {
+      // Only reload habits when metadata changes (name, icon, etc.)
       loadHabits();
+    });
+
+    $socket.on('habit:entry-updated', (data: { habitId: string; date: string }) => {
+      // Entry updates (completions) don't need to reload habits
+      // Components should handle entry reloading themselves if needed
     });
 
     $socket.on('habit:deleted', (data: { habitId: string }) => {

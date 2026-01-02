@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { habits, loading, loadHabits } from '$lib/stores/habits';
+  import { socket } from '$lib/stores/socket';
   import { format, isSameDay } from 'date-fns';
 
   interface HabitEntry {
@@ -15,6 +16,7 @@
   let entriesLoaded = false;
   let currentTime = new Date();
   let timeInterval: ReturnType<typeof setInterval>;
+  let processingHabits = new Set<string>();
 
   onMount(async () => {
     await loadHabits();
@@ -40,10 +42,31 @@
     timeInterval = setInterval(() => {
       currentTime = new Date();
     }, 60000);
+    
+    // Listen for entry updates from other clients (e.g., dashboard)
+    const unsubscribe = socket.subscribe(($socket) => {
+      if ($socket) {
+        console.log('[Mobile] Setting up habit:entry-updated listener');
+        $socket.on('habit:entry-updated', async (data: { habitId: string; date: string }) => {
+          console.log('[Mobile] Received entry update for habit:', data.habitId);
+          // Reload entries for the updated habit
+          const entries = await loadEntriesForHabit(data.habitId);
+          console.log('[Mobile] Loaded new entries:', entries);
+          // Create a completely new object to trigger Svelte reactivity
+          const newEntries = { ...habitEntries };
+          newEntries[data.habitId] = entries;
+          habitEntries = newEntries;
+          console.log('[Mobile] Updated habitEntries, should trigger UI update');
+        });
+      }
+    });
   });
 
   onDestroy(() => {
     if (timeInterval) clearInterval(timeInterval);
+    if ($socket) {
+      $socket.off('habit:entry-updated');
+    }
   });
 
   async function loadEntriesForHabit(habitId: string): Promise<HabitEntry[]> {
@@ -61,50 +84,82 @@
   }
 
   async function handleHabitClick(habitId: string) {
+    // Prevent double-clicks and clicks during processing
+    if (processingHabits.has(habitId)) return;
+    
+    processingHabits.add(habitId);
+    processingHabits = processingHabits; // trigger reactivity
+    
     const targetDate = new Date();
     const dateStr = format(targetDate, 'yyyy-MM-dd');
     
     const habit = $habits.find(h => h.id === habitId);
-    if (!habit) return;
+    if (!habit) {
+      processingHabits.delete(habitId);
+      processingHabits = processingHabits;
+      return;
+    }
     
     const existingEntry = habitEntries[habitId]?.find(e => e.date === dateStr);
     const currentCount = existingEntry?.count || 0;
-    const newCount = currentCount >= habit.targetCount ? 0 : currentCount + 1;
+    const isResetting = currentCount >= habit.targetCount;
     
     // Optimistic update
-    if (existingEntry) {
-      existingEntry.count = newCount;
+    if (isResetting) {
+      // Reset to 0
+      habitEntries[habitId] = habitEntries[habitId]?.filter(e => e.date !== dateStr) || [];
     } else {
-      if (!habitEntries[habitId]) habitEntries[habitId] = [];
-      habitEntries[habitId].push({
-        id: 'temp-' + Date.now(),
-        habitId,
-        date: dateStr,
-        count: newCount,
-        completedAt: new Date().toISOString()
-      });
+      // Increment count
+      if (existingEntry) {
+        existingEntry.count = currentCount + 1;
+      } else {
+        if (!habitEntries[habitId]) habitEntries[habitId] = [];
+        habitEntries[habitId].push({
+          id: 'temp-' + Date.now(),
+          habitId,
+          date: dateStr,
+          count: 1,
+          completedAt: new Date().toISOString()
+        });
+      }
     }
     habitEntries = { ...habitEntries };
     
     // Sync with backend
     try {
-      const response = await fetch(`/api/habits/${habitId}/complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: dateStr }),
-      });
-      
-      if (response.ok) {
-        const entries = await loadEntriesForHabit(habitId);
-        habitEntries = { ...habitEntries, [habitId]: entries };
+      if (isResetting) {
+        // Reset: delete the entry
+        const response = await fetch(`/api/habits/${habitId}/entries/${dateStr}`, {
+          method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+          // Revert on error
+          const entries = await loadEntriesForHabit(habitId);
+          habitEntries = { ...habitEntries, [habitId]: entries };
+        }
       } else {
-        const entries = await loadEntriesForHabit(habitId);
-        habitEntries = { ...habitEntries, [habitId]: entries };
+        // Increment: add timestamp
+        const response = await fetch(`/api/habits/${habitId}/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: dateStr }),
+        });
+        
+        if (!response.ok) {
+          // Revert on error
+          const entries = await loadEntriesForHabit(habitId);
+          habitEntries = { ...habitEntries, [habitId]: entries };
+        }
       }
     } catch (error) {
-      console.error('Failed to complete habit:', error);
+      console.error('Failed to update habit:', error);
+      // Revert on error
       const entries = await loadEntriesForHabit(habitId);
       habitEntries = { ...habitEntries, [habitId]: entries };
+    } finally {
+      processingHabits.delete(habitId);
+      processingHabits = processingHabits;
     }
   }
 
@@ -152,6 +207,25 @@
     const count = entry?.count || 0;
     return count >= habit.targetCount;
   }
+
+  // Reactive sorted habits - depends on both habits and habitEntries
+  $: sortedHabits = (() => {
+    // Reference habitEntries to trigger reactivity
+    const _ = habitEntries;
+    return [...$habits].sort((a, b) => {
+      const aComplete = isComplete(a.id);
+      const bComplete = isComplete(b.id);
+      const aProgress = getProgressPercentage(a.id);
+      const bProgress = getProgressPercentage(b.id);
+      
+      // Full complete goes to bottom
+      if (aComplete && !bComplete) return 1;
+      if (!aComplete && bComplete) return -1;
+      
+      // Both incomplete or both complete: sort by progress (higher first)
+      return bProgress - aProgress;
+    });
+  })();
 </script>
 
 <svelte:head>
@@ -160,11 +234,14 @@
 </svelte:head>
 
 <div class="mobile-container">
-  <!-- Header -->
+  <!-- Header with Stats -->
   <div class="mobile-header">
-    <div class="date-time">
+    <div class="date-stats">
       <div class="date font-mono">{format(currentTime, 'EEEE, MMMM d')}</div>
-      <div class="time font-mono">{format(currentTime, 'h:mm a')}</div>
+      <div class="completed-stats font-mono">
+        <span class="completed-count">{$habits.filter(h => isComplete(h.id)).length}/{$habits.length}</span>
+        <span class="completed-label">completed</span>
+      </div>
     </div>
   </div>
 
@@ -175,7 +252,7 @@
     {:else if $habits.length === 0}
       <div class="empty">No habits configured</div>
     {:else}
-      {#each $habits as habit (habit.id)}
+      {#each sortedHabits as habit (habit.id)}
         {@const entry = getTodayEntry(habit.id)}
         {@const count = entry?.count || 0}
         {@const streak = calculateStreak(habit.id)}
@@ -185,6 +262,8 @@
         <button
           class="habit-card glass"
           class:complete={complete}
+          class:processing={processingHabits.has(habit.id)}
+          disabled={processingHabits.has(habit.id)}
           on:click={() => handleHabitClick(habit.id)}
         >
           <div class="habit-header">
@@ -209,13 +288,6 @@
     {/if}
   </div>
 
-  <!-- Footer Stats -->
-  <div class="mobile-footer">
-    <div class="stat">
-      <div class="stat-value font-mono">{$habits.filter(h => isComplete(h.id)).length}/{$habits.length}</div>
-      <div class="stat-label">Completed Today</div>
-    </div>
-  </div>
 </div>
 
 <style>
@@ -231,25 +303,43 @@
   }
 
   .mobile-header {
-    padding: 1rem 0;
+    padding: 1rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(18, 18, 18, 0.95);
+    border-radius: 16px;
+    margin-bottom: 0.5rem;
   }
 
-  .date-time {
-    text-align: center;
+  .date-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
   }
 
   .date {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.25rem;
+    font-size: 1rem;
+    color: var(--text-primary);
+    font-weight: 600;
   }
 
-  .time {
-    font-size: 2rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    letter-spacing: -0.02em;
+  .completed-stats {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+
+  .completed-count {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent-primary);
+  }
+
+  .completed-label {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 
   .habits-list {
@@ -283,6 +373,15 @@
   .habit-card:active {
     transform: scale(0.98);
     background: var(--surface-hover);
+  }
+
+  .habit-card.processing {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .habit-card:disabled {
+    cursor: not-allowed;
   }
 
   .habit-card.complete {
@@ -362,31 +461,6 @@
     background: var(--accent-primary);
   }
 
-  .mobile-footer {
-    padding: 1rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    background: rgba(18, 18, 18, 0.95);
-    border-radius: 16px;
-    margin-top: auto;
-  }
-
-  .stat {
-    text-align: center;
-  }
-
-  .stat-value {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--accent-primary);
-    margin-bottom: 0.25rem;
-  }
-
-  .stat-label {
-    font-size: 0.85rem;
-    color: var(--text-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
 
   .loading, .empty {
     text-align: center;
@@ -403,18 +477,6 @@
     
     .habit-card {
       padding: 1.5rem;
-    }
-  }
-  
-  @media (min-width: 768px) {
-    .mobile-container {
-      padding: 2rem 3rem;
-    }
-    
-    .habits-list {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1rem;
     }
   }
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { habits, loading, loadHabits, completeHabit } from '$lib/stores/habits';
+  import { socket } from '$lib/stores/socket';
   import { subDays, format, isSameDay } from 'date-fns';
 
   interface HabitEntry {
@@ -52,10 +53,31 @@
     timeInterval = setInterval(() => {
       currentTime = new Date();
     }, 60000);
+    
+    // Listen for entry updates from other clients (e.g., mobile)
+    const unsubscribe = socket.subscribe(($socket) => {
+      if ($socket) {
+        console.log('[HabitTracker] Setting up habit:entry-updated listener');
+        $socket.on('habit:entry-updated', async (data: { habitId: string; date: string }) => {
+          console.log('[HabitTracker] Received entry update for habit:', data.habitId);
+          // Reload entries for the updated habit
+          const entries = await loadEntriesForHabit(data.habitId);
+          console.log('[HabitTracker] Loaded new entries:', entries);
+          // Create a completely new object to trigger Svelte reactivity
+          const newEntries = { ...habitEntries };
+          newEntries[data.habitId] = entries;
+          habitEntries = newEntries;
+          console.log('[HabitTracker] Updated habitEntries, should trigger UI update');
+        });
+      }
+    });
   });
 
   onDestroy(() => {
     if (timeInterval) clearInterval(timeInterval);
+    if ($socket) {
+      $socket.off('habit:entry-updated');
+    }
   });
 
   async function loadEntriesForHabit(habitId: string): Promise<HabitEntry[]> {

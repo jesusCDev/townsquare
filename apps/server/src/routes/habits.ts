@@ -120,8 +120,8 @@ export const habitRoutes: FastifyPluginAsync = async (app) => {
       });
     }
 
-    // Emit WebSocket event
-    app.io.emit('habit:updated', { habitId: id, date });
+    // Emit WebSocket event for entry update (not habit metadata)
+    app.io.emit('habit:entry-updated', { habitId: id, date });
     
     return { success: true };
   });
@@ -139,6 +139,20 @@ export const habitRoutes: FastifyPluginAsync = async (app) => {
       .limit(parseInt(days));
     
     return { entries };
+  });
+
+  // Delete habit entry (reset for a specific date)
+  app.delete('/api/habits/:id/entries/:date', async (request, reply) => {
+    const { id, date } = request.params as { id: string; date: string };
+    
+    await db
+      .delete(habitEntries)
+      .where(and(eq(habitEntries.habitId, id), eq(habitEntries.date, date)));
+    
+    // Emit WebSocket event for entry update (not habit metadata)
+    app.io.emit('habit:entry-updated', { habitId: id, date });
+    
+    return { success: true };
   });
 
   // Update habit
