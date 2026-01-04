@@ -101,20 +101,25 @@
   async function handleHabitClick(habitId: string, date?: Date) {
     const targetDate = date || new Date();
     const dateStr = format(targetDate, 'yyyy-MM-dd');
-    
+
     // Optimistically update the UI first
     const habit = $habits.find(h => h.id === habitId);
     if (!habit) return;
-    
+
     // Get existing entry or create new one
     const existingEntry = habitEntries[habitId]?.find(e => e.date === dateStr);
     const currentCount = existingEntry?.count || 0;
-    
+
     // If already at max, reset to 0 (one more click cycles back)
     const newCount = currentCount >= habit.targetCount ? 0 : currentCount + 1;
-    
+
     // Update local state immediately for instant feedback
-    if (existingEntry) {
+    if (newCount === 0) {
+      // Remove the entry from local state
+      if (habitEntries[habitId]) {
+        habitEntries[habitId] = habitEntries[habitId].filter(e => e.date !== dateStr);
+      }
+    } else if (existingEntry) {
       existingEntry.count = newCount;
     } else {
       if (!habitEntries[habitId]) habitEntries[habitId] = [];
@@ -127,15 +132,24 @@
       });
     }
     habitEntries = { ...habitEntries }; // Trigger reactivity immediately
-    
+
     // Then sync with backend
     try {
-      const response = await fetch(`/api/habits/${habitId}/complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: dateStr }),
-      });
-      
+      let response;
+      if (newCount === 0) {
+        // Delete the entry to reset
+        response = await fetch(`/api/habits/${habitId}/entries/${dateStr}`, {
+          method: 'DELETE',
+        });
+      } else {
+        // Complete/increment the habit
+        response = await fetch(`/api/habits/${habitId}/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: dateStr }),
+        });
+      }
+
       if (response.ok) {
         // Reload from server to get accurate data
         const entries = await loadEntriesForHabit(habitId);
@@ -146,7 +160,7 @@
         habitEntries = { ...habitEntries, [habitId]: entries };
       }
     } catch (error) {
-      console.error('Failed to complete habit:', error);
+      console.error('Failed to update habit:', error);
       // Revert on error
       const entries = await loadEntriesForHabit(habitId);
       habitEntries = { ...habitEntries, [habitId]: entries };

@@ -40,20 +40,88 @@
     return hours * 60 + minutes;
   }
 
+  // Helper to expand overnight blocks into two segments
+  function expandOvernightBlock(block: any): any[] {
+    const startMinutes = timeToMinutes(block.startTime);
+    const endMinutes = block.endTime ? timeToMinutes(block.endTime) : 1440;
+
+    // Check if this is an overnight block (end time is before start time, e.g., 22:00-06:00)
+    if (endMinutes <= startMinutes && block.endTime && block.endTime !== '24:00') {
+      // Split into two segments
+      return [
+        { ...block, id: `${block.id}-morning`, startTime: '00:00', endTime: block.endTime, _startMinutes: 0, _endMinutes: endMinutes },
+        { ...block, id: `${block.id}-evening`, startTime: block.startTime, endTime: '24:00', _startMinutes: startMinutes, _endMinutes: 1440 },
+      ];
+    }
+
+    return [{ ...block, _startMinutes: startMinutes, _endMinutes: endMinutes }];
+  }
+
   function getCurrentDayBlocks() {
     const now = new Date();
     const dayOfWeek = now.getDay();
     const dayMask = 1 << dayOfWeek;
 
-    console.log('[getCurrentDayBlocks] Day of week:', dayOfWeek, 'dayMask:', dayMask);
-    console.log('[getCurrentDayBlocks] All blocks:', $scheduleBlocks.length);
-    $scheduleBlocks.forEach(block => {
-      console.log(`  Block: ${block.name}, daysMask: ${block.daysMask}, matches: ${(block.daysMask & dayMask) !== 0}`);
-    });
+    const rawBlocks = $scheduleBlocks.filter(block => (block.daysMask & dayMask) !== 0);
 
-    return $scheduleBlocks
-      .filter(block => (block.daysMask & dayMask) !== 0)
-      .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+    // Expand overnight blocks
+    const expandedBlocks: any[] = [];
+    for (const block of rawBlocks) {
+      expandedBlocks.push(...expandOvernightBlock(block));
+    }
+
+    // Sort by start time
+    expandedBlocks.sort((a, b) => a._startMinutes - b._startMinutes);
+
+    // Fill gaps with "Free Time" blocks
+    const blocksWithGaps: any[] = [];
+    let lastEndMinutes = 0; // Start of day (midnight)
+
+    for (const block of expandedBlocks) {
+      const startMinutes = block._startMinutes;
+      const endMinutes = block._endMinutes;
+
+      // If there's a gap before this block, add a free time block
+      if (startMinutes > lastEndMinutes) {
+        blocksWithGaps.push({
+          id: `free-${lastEndMinutes}-${startMinutes}`,
+          name: 'Free Time',
+          icon: '',
+          color: 'rgba(255, 255, 255, 0.08)',
+          startTime: minutesToTime(lastEndMinutes),
+          endTime: minutesToTime(startMinutes),
+          isFreeTime: true,
+        });
+      }
+
+      blocksWithGaps.push({
+        ...block,
+        startTime: minutesToTime(startMinutes),
+        endTime: minutesToTime(endMinutes),
+      });
+      lastEndMinutes = Math.max(lastEndMinutes, endMinutes);
+    }
+
+    // Add free time block at the end if schedule doesn't go to midnight
+    if (lastEndMinutes < 1440) {
+      blocksWithGaps.push({
+        id: `free-${lastEndMinutes}-1440`,
+        name: 'Free Time',
+        icon: '',
+        color: 'rgba(255, 255, 255, 0.08)',
+        startTime: minutesToTime(lastEndMinutes),
+        endTime: '24:00',
+        isFreeTime: true,
+      });
+    }
+
+    return blocksWithGaps;
+  }
+
+  function minutesToTime(minutes: number): string {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
   }
 
   function getBlockWidth(block: any): number {
@@ -63,16 +131,29 @@
     return (duration / 1440) * 100;
   }
 
-  function getAdjustedBlockWidth(block: any, isActive: boolean, totalBlocks: number): number {
-    if (totalBlocks <= 1) return 100;
-    
-    if (isActive) {
-      return 70; // Active block takes 70%
+  function getAdjustedBlockWidth(block: any, isActive: boolean, hasActiveBlock: boolean, allBlocks: any[]): number {
+    if (!hasActiveBlock) {
+      // No active block - use proportional time-based widths
+      return getBlockWidth(block);
     }
-    
-    // Remaining blocks share the 30%
-    const inactiveBlockCount = totalBlocks - 1;
-    return inactiveBlockCount > 0 ? 30 / inactiveBlockCount : 30;
+
+    if (isActive) {
+      return 55; // Active block takes 55%
+    }
+
+    // Remaining blocks share 45% proportionally based on their duration
+    const inactiveBlocks = allBlocks.filter(b => b.id !== block.id || b.isFreeTime);
+    const totalInactiveDuration = inactiveBlocks.reduce((sum, b) => {
+      const start = timeToMinutes(b.startTime);
+      const end = b.endTime ? timeToMinutes(b.endTime) : 1440;
+      return sum + (end - start);
+    }, 0);
+
+    const blockStart = timeToMinutes(block.startTime);
+    const blockEnd = block.endTime ? timeToMinutes(block.endTime) : 1440;
+    const blockDuration = blockEnd - blockStart;
+
+    return totalInactiveDuration > 0 ? (blockDuration / totalInactiveDuration) * 45 : 45;
   }
 
   function getCurrentTimePosition(): number {
@@ -145,15 +226,18 @@
   <div class="timeline-bar-wrapper">
     <div class="timeline-bar">
       {#each blocks as block (block.id)}
-        {@const isActive = currentBlock?.id === block.id}
-        {@const adjustedWidth = getAdjustedBlockWidth(block, isActive, blocks.length)}
+        {@const isFreeTime = block.isFreeTime}
+        {@const isActive = !isFreeTime && currentBlock?.id === block.id}
+        {@const hasActiveBlock = currentBlock && !currentBlock.isFreeTime}
+        {@const adjustedWidth = getAdjustedBlockWidth(block, isActive, hasActiveBlock, blocks)}
         {@const progress = isActive ? getBlockProgress(block) : 0}
         {@const timeRemaining = isActive ? formatTimeRemaining(block) : ''}
         {@const isUrgent = isActive && timeRemaining && (timeRemaining.includes('m') && !timeRemaining.includes('h') && parseInt(timeRemaining) <= 5)}
-        <div 
+        <div
           class="block"
           class:active={isActive}
           class:urgent={isUrgent}
+          class:free-time={isFreeTime}
           style="width: {adjustedWidth}%; background: {block.color}; {isActive ? 'height: 200px;' : ''} {isActive ? `--progress-width: ${progress}%;` : ''}"
           title="{block.name}: {block.startTime} - {block.endTime || 'end'}"
         >
@@ -178,6 +262,9 @@
               </div>
               <span class="time-label-end font-mono">{block.endTime || 'End'}</span>
             </div>
+          {:else if isFreeTime}
+            <!-- Free time block - subtle pattern -->
+            <span class="free-time-label font-mono">{block.startTime}</span>
           {:else}
             <!-- Inactive block content -->
             <span class="block-icon-small">{block.icon || '▪'}</span>
@@ -252,8 +339,9 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5),
                 inset 0 0 30px rgba(255, 255, 255, 0.1);
     filter: brightness(0.85) saturate(1.1);
-    min-width: 320px;
+    min-width: 520px;
     position: relative;
+    flex-shrink: 0;
   }
 
   .block.active::before {
@@ -295,6 +383,28 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5),
                 inset 0 0 30px rgba(255, 255, 255, 0.1),
                 0 0 20px rgba(239, 68, 68, 0.3);
+  }
+
+  /* Free time block styling */
+  .block.free-time {
+    background: repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.03),
+      rgba(255, 255, 255, 0.03) 4px,
+      rgba(255, 255, 255, 0.06) 4px,
+      rgba(255, 255, 255, 0.06) 8px
+    ) !important;
+    border-right: 1px dashed rgba(255, 255, 255, 0.15);
+  }
+
+  .block.free-time:hover {
+    filter: brightness(1.3);
+  }
+
+  .free-time-label {
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 500;
   }
 
   /* Inactive block content */

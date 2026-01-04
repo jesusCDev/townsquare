@@ -309,6 +309,168 @@
     return hours * 60 + minutes;
   }
 
+  function minutesToTime(minutes: number): string {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+  }
+
+  // Format time string (HH:MM) based on user's time format preference
+  function formatTimeStr(time: string, format: '12' | '24'): string {
+    if (format === '24' || !time) return time;
+
+    const [hours, mins] = time.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const hour12 = hours % 12 || 12;
+    return `${hour12}:${mins.toString().padStart(2, '0')} ${period}`;
+  }
+
+  // Get schedule preview for a specific day mask, including the new block being added
+  type PreviewSlot = { name: string; icon: string; startTime: string; endTime: string; color: string; isAvailable: boolean; isNewBlock: boolean };
+
+  // Helper to expand blocks - handles overnight blocks by splitting them
+  type ExpandedBlock = { name: string; icon: string; startMinutes: number; endMinutes: number; isExisting: boolean };
+
+  function expandBlock(block: { name: string; icon: string; startTime: string; endTime: string; isExisting: boolean }): ExpandedBlock[] {
+    const startMinutes = timeToMinutes(block.startTime);
+    const endMinutes = block.endTime ? timeToMinutes(block.endTime) : 1440;
+
+    // Check if this is an overnight block (end time is before start time, e.g., 22:00-06:00)
+    if (endMinutes <= startMinutes && block.endTime && block.endTime !== '24:00') {
+      // Split into two segments: start->midnight and midnight->end
+      return [
+        { ...block, startMinutes: 0, endMinutes: endMinutes },           // 00:00 to end (morning portion)
+        { ...block, startMinutes: startMinutes, endMinutes: 1440 },      // start to 24:00 (evening portion)
+      ];
+    }
+
+    return [{ ...block, startMinutes, endMinutes }];
+  }
+
+  function getScheduleForDayMask(dayMask: number, newBlockData: typeof newBlock): PreviewSlot[] {
+    if (dayMask === 0) return [];
+
+    // Get existing blocks that apply to this specific day pattern
+    const rawBlocks = scheduleBlocks
+      .filter(block => (block.daysMask & dayMask) !== 0)
+      .map(block => ({
+        name: block.name,
+        icon: block.icon || '',
+        startTime: block.startTime,
+        endTime: block.endTime || '24:00',
+        isExisting: true,
+      }));
+
+    // Add the new block being created if it has valid times and applies to this day
+    if (newBlockData.startTime && (newBlockData.daysMask & dayMask) !== 0) {
+      rawBlocks.push({
+        name: newBlockData.name || 'New Block',
+        icon: newBlockData.icon || '➕',
+        startTime: newBlockData.startTime,
+        endTime: newBlockData.endTime || '24:00',
+        isExisting: false,
+      });
+    }
+
+    // Expand all blocks (handles overnight blocks)
+    const expandedBlocks: ExpandedBlock[] = [];
+    for (const block of rawBlocks) {
+      expandedBlocks.push(...expandBlock(block));
+    }
+
+    // Sort by start time
+    expandedBlocks.sort((a, b) => a.startMinutes - b.startMinutes);
+
+    const preview: PreviewSlot[] = [];
+    let lastEndMinutes = 0;
+
+    for (const block of expandedBlocks) {
+      // Add available time gap if there's space before this block
+      if (block.startMinutes > lastEndMinutes) {
+        preview.push({
+          name: 'Available',
+          icon: '',
+          startTime: minutesToTime(lastEndMinutes),
+          endTime: minutesToTime(block.startMinutes),
+          color: '#22c55e',
+          isAvailable: true,
+          isNewBlock: false,
+        });
+      }
+
+      // Scheduled block (existing = red, new = blue)
+      preview.push({
+        name: block.name,
+        icon: block.icon,
+        startTime: minutesToTime(block.startMinutes),
+        endTime: minutesToTime(block.endMinutes),
+        color: block.isExisting ? '#ef4444' : '#3b82f6',
+        isAvailable: false,
+        isNewBlock: !block.isExisting,
+      });
+
+      lastEndMinutes = Math.max(lastEndMinutes, block.endMinutes);
+    }
+
+    // Add available time at the end if needed
+    if (lastEndMinutes < 1440) {
+      preview.push({
+        name: 'Available',
+        icon: '',
+        startTime: minutesToTime(lastEndMinutes),
+        endTime: '24:00',
+        color: '#22c55e',
+        isAvailable: true,
+        isNewBlock: false,
+      });
+    }
+
+    return preview;
+  }
+
+  // Determine which preview rows to show based on selected days
+  type PreviewRow = { label: string; dayMask: number; slots: PreviewSlot[] };
+
+  function getSchedulePreviews(daysMask: number, newBlockData: typeof newBlock, _blocks: typeof scheduleBlocks): PreviewRow[] {
+    if (daysMask === 0) return [];
+
+    const hasWeekdays = (daysMask & 31) !== 0;  // Mon-Fri bits
+    const hasWeekend = (daysMask & 96) !== 0;   // Sat-Sun bits
+
+    const rows: PreviewRow[] = [];
+
+    if (hasWeekdays && hasWeekend) {
+      // Show both weekday and weekend rows
+      rows.push({
+        label: 'Weekdays (Mon-Fri)',
+        dayMask: daysMask & 31,
+        slots: getScheduleForDayMask(daysMask & 31, newBlockData),
+      });
+      rows.push({
+        label: 'Weekend (Sat-Sun)',
+        dayMask: daysMask & 96,
+        slots: getScheduleForDayMask(daysMask & 96, newBlockData),
+      });
+    } else if (hasWeekdays) {
+      rows.push({
+        label: 'Weekdays',
+        dayMask: daysMask & 31,
+        slots: getScheduleForDayMask(daysMask & 31, newBlockData),
+      });
+    } else if (hasWeekend) {
+      rows.push({
+        label: 'Weekend',
+        dayMask: daysMask & 96,
+        slots: getScheduleForDayMask(daysMask & 96, newBlockData),
+      });
+    }
+
+    return rows;
+  }
+
+  // Reactive previews - depends on daysMask, newBlock times, and scheduleBlocks
+  $: schedulePreviews = getSchedulePreviews(newBlock.daysMask, newBlock, scheduleBlocks);
+
   function checkScheduleOverlap(startTime: string, endTime: string, daysMask: number): string | null {
     const newStart = timeToMinutes(startTime);
     const newEnd = timeToMinutes(endTime);
@@ -335,7 +497,7 @@
         // Check for overlap
         if (newStart < existingEnd && newEnd > existingStart) {
           const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-          return `Overlaps with "${block.name}" on ${dayNames[day]} (${block.startTime}-${block.endTime || 'end'})`;
+          return `Overlaps with "${block.name}" on ${dayNames[day]}`;
         }
       }
     }
@@ -485,7 +647,7 @@
           !(start === blockEnd || end === blockStart); // But not just touching
 
         if (hasPartialOverlap) {
-          return `Overlaps with "${block.name}" on ${dayNames[day]} (${block.startTime}-${block.endTime || 'end'})`;
+          return `Overlaps with "${block.name}" on ${dayNames[day]}`;
         }
       }
     }
@@ -838,6 +1000,53 @@
             </div>
           </div>
         </div>
+
+        <!-- Schedule Preview Timeline -->
+        {#if schedulePreviews.length > 0}
+          <div class="schedule-preview">
+            <label>Availability for Selected Days:</label>
+            <div class="preview-legend">
+              <span class="legend-item"><span class="legend-color available"></span> Available</span>
+              <span class="legend-item"><span class="legend-color scheduled"></span> Scheduled</span>
+              <span class="legend-item"><span class="legend-color new-block"></span> Adding</span>
+            </div>
+            {#each schedulePreviews as row}
+              <div class="preview-row">
+                <div class="preview-row-label">{row.label}</div>
+                <div class="preview-timeline">
+                  {#each row.slots as slot}
+                    {@const startMins = timeToMinutes(slot.startTime)}
+                    {@const endMins = slot.endTime === '24:00' ? 1440 : timeToMinutes(slot.endTime)}
+                    {@const widthPercent = ((endMins - startMins) / 1440) * 100}
+                    <div
+                      class="preview-slot"
+                      class:available={slot.isAvailable}
+                      class:scheduled={!slot.isAvailable && !slot.isNewBlock}
+                      class:new-block={slot.isNewBlock}
+                      style="width: {widthPercent}%;"
+                      title="{slot.name}: {formatTimeStr(slot.startTime, $timeFormat)} - {formatTimeStr(slot.endTime, $timeFormat)}"
+                    >
+                      {#if widthPercent > 6 && slot.icon}
+                        <span class="slot-icon">{slot.icon}</span>
+                      {/if}
+                      {#if widthPercent > 12}
+                        <span class="slot-label">{formatTimeStr(slot.startTime, $timeFormat)}</span>
+                      {/if}
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+            <div class="preview-times">
+              <span>{formatTimeStr('00:00', $timeFormat)}</span>
+              <span>{formatTimeStr('06:00', $timeFormat)}</span>
+              <span>{formatTimeStr('12:00', $timeFormat)}</span>
+              <span>{formatTimeStr('18:00', $timeFormat)}</span>
+              <span>{$timeFormat === '12' ? '12:00 AM' : '24:00'}</span>
+            </div>
+          </div>
+        {/if}
+
         <button type="submit" class="save-btn-form">
           <span class="btn-icon">✓</span> Save Schedule Block
         </button>
@@ -852,7 +1061,7 @@
             <div class="item">
               <span class="icon">{block.icon || '●'}</span>
               <span class="name">{block.name}</span>
-              <span class="time">{block.startTime} - {block.endTime || 'end'}</span>
+              <span class="time">{formatTimeStr(block.startTime, $timeFormat)} - {block.endTime ? formatTimeStr(block.endTime, $timeFormat) : 'end'}</span>
               <span class="badge" style="background: {block.color};">Every day</span>
               <button class="edit-btn" on:click={() => startEditBlock(block)}>
                 Edit
@@ -872,7 +1081,7 @@
             <div class="item">
               <span class="icon">{block.icon || '●'}</span>
               <span class="name">{block.name}</span>
-              <span class="time">{block.startTime} - {block.endTime || 'end'}</span>
+              <span class="time">{formatTimeStr(block.startTime, $timeFormat)} - {block.endTime ? formatTimeStr(block.endTime, $timeFormat) : 'end'}</span>
               <span class="badge" style="background: {block.color};">Mon-Fri</span>
               <button class="edit-btn" on:click={() => startEditBlock(block)}>
                 Edit
@@ -892,7 +1101,7 @@
             <div class="item">
               <span class="icon">{block.icon || '●'}</span>
               <span class="name">{block.name}</span>
-              <span class="time">{block.startTime} - {block.endTime || 'end'}</span>
+              <span class="time">{formatTimeStr(block.startTime, $timeFormat)} - {block.endTime ? formatTimeStr(block.endTime, $timeFormat) : 'end'}</span>
               <span class="badge" style="background: {block.color};">Sat-Sun</span>
               <button class="edit-btn" on:click={() => startEditBlock(block)}>
                 Edit
@@ -912,7 +1121,7 @@
             <div class="item">
               <span class="icon">{block.icon || '●'}</span>
               <span class="name">{block.name}</span>
-              <span class="time">{block.startTime} - {block.endTime || 'end'}</span>
+              <span class="time">{formatTimeStr(block.startTime, $timeFormat)} - {block.endTime ? formatTimeStr(block.endTime, $timeFormat) : 'end'}</span>
               <span class="badge" style="background: {block.color};">Custom</span>
               <button class="edit-btn" on:click={() => startEditBlock(block)}>
                 Edit
@@ -1514,6 +1723,135 @@
   .days-selector {
     display: flex;
     gap: 0.5rem;
+  }
+
+  /* Schedule Preview Timeline */
+  .schedule-preview {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.5rem;
+  }
+
+  .schedule-preview > label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .preview-legend {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .legend-color {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+
+  .legend-color.available {
+    background: rgba(34, 197, 94, 0.6);
+    border: 1px solid rgba(34, 197, 94, 0.8);
+  }
+
+  .legend-color.scheduled {
+    background: rgba(239, 68, 68, 0.6);
+    border: 1px solid rgba(239, 68, 68, 0.8);
+  }
+
+  .legend-color.new-block {
+    background: rgba(59, 130, 246, 0.6);
+    border: 1px solid rgba(59, 130, 246, 0.8);
+  }
+
+  .preview-row {
+    margin-bottom: 0.75rem;
+  }
+
+  .preview-row-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 0.35rem;
+  }
+
+  .preview-timeline {
+    display: flex;
+    height: 32px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .preview-slot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    border-right: 1px solid rgba(0, 0, 0, 0.4);
+    transition: all 0.2s;
+    overflow: hidden;
+  }
+
+  .preview-slot:last-child {
+    border-right: none;
+  }
+
+  .preview-slot.available {
+    background: rgba(34, 197, 94, 0.3);
+    border-right: 1px solid rgba(34, 197, 94, 0.5);
+  }
+
+  .preview-slot.scheduled {
+    background: rgba(239, 68, 68, 0.4);
+    border-right: 1px solid rgba(239, 68, 68, 0.5);
+  }
+
+  .preview-slot.new-block {
+    background: rgba(59, 130, 246, 0.5);
+    border-right: 1px solid rgba(59, 130, 246, 0.7);
+    box-shadow: inset 0 0 8px rgba(59, 130, 246, 0.4);
+  }
+
+  .slot-icon {
+    font-size: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .slot-label {
+    font-size: 0.55rem;
+    font-weight: 600;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 2px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .preview-times {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.6rem;
+    color: var(--text-tertiary);
+    font-family: 'JetBrains Mono', monospace;
   }
 
   .day-btn {
