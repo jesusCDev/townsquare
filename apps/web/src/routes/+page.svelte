@@ -1,10 +1,13 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { format } from 'date-fns';
   import Header from '$lib/components/Header.svelte';
   import HabitTracker from '$lib/components/HabitTracker.svelte';
   import Timeline from '$lib/components/Timeline.svelte';
   import AlertNotification from '$lib/components/AlertNotification.svelte';
   import { nightModeInfo, temporarilyDisableDim, manuallyEnableDim } from '$lib/stores/nightmode';
+  import { habits } from '$lib/stores/habits';
+  import { triggerDismissAlert } from '$lib/stores/alertActions';
 
   let toastMessage = '';
   let showToast = false;
@@ -17,10 +20,64 @@
     }, 2000);
   }
 
+  // Toggle habit by index (0-based, so key 1 = index 0)
+  async function toggleHabitByIndex(index: number) {
+    const habitList = $habits;
+    if (index < 0 || index >= habitList.length) return;
+
+    const habit = habitList[index];
+    const dateStr = format(new Date(), 'yyyy-MM-dd');
+
+    try {
+      // Get current entry count
+      const entriesRes = await fetch(`/api/habits/${habit.id}/entries?days=1`);
+      const entriesData = await entriesRes.json();
+      const entries = entriesData.entries || entriesData || [];
+      const todayEntry = entries.find((e: any) => e.date === dateStr);
+      const currentCount = todayEntry?.count || 0;
+
+      // Calculate new count (cycle: 0 -> 1 -> ... -> target -> 0)
+      const newCount = currentCount >= habit.targetCount ? 0 : currentCount + 1;
+
+      if (newCount === 0) {
+        // Delete entry to reset
+        await fetch(`/api/habits/${habit.id}/entries/${dateStr}`, { method: 'DELETE' });
+        showNotification(`${habit.icon || '▪'} ${habit.name} reset`);
+      } else {
+        // Complete/increment
+        await fetch(`/api/habits/${habit.id}/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: dateStr }),
+        });
+        const status = newCount >= habit.targetCount ? 'complete!' : `${newCount}/${habit.targetCount}`;
+        showNotification(`${habit.icon || '▪'} ${habit.name} ${status}`);
+      }
+    } catch (error) {
+      console.error('Failed to toggle habit:', error);
+      showNotification('Failed to update habit');
+    }
+  }
+
   function handleKeydown(event: KeyboardEvent) {
     // Ignore if user is typing in an input field
-    if (event.target instanceof HTMLInputElement || 
+    if (event.target instanceof HTMLInputElement ||
         event.target instanceof HTMLTextAreaElement) {
+      return;
+    }
+
+    // Space - Dismiss alert
+    if (event.key === ' ' || event.code === 'Space') {
+      event.preventDefault();
+      triggerDismissAlert();
+      return;
+    }
+
+    // Number keys 1-9 - Toggle habits
+    if (event.key >= '1' && event.key <= '9') {
+      event.preventDefault();
+      const index = parseInt(event.key) - 1; // Convert to 0-based index
+      toggleHabitByIndex(index);
       return;
     }
 
@@ -29,7 +86,7 @@
       event.preventDefault();
       event.stopPropagation(); // Prevent other handlers from catching this
       console.log('[Shortcut] D key pressed, nightModeInfo:', $nightModeInfo);
-      
+
       if ($nightModeInfo.isActive) {
         // Dim mode is currently on - turn it off
         temporarilyDisableDim();

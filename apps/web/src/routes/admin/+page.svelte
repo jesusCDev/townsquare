@@ -1496,6 +1496,20 @@
           
           <div class="shortcut-list">
             <div class="shortcut-item">
+              <div class="shortcut-key">1-9</div>
+              <div class="shortcut-description">
+                <strong>Toggle Habits</strong>
+                <p>Press number keys 1-9 to toggle the corresponding habit for today. Key 1 affects the first habit, key 2 the second, etc. Works the same as clicking - cycles through completion states.</p>
+              </div>
+            </div>
+            <div class="shortcut-item">
+              <div class="shortcut-key">Space</div>
+              <div class="shortcut-description">
+                <strong>Dismiss Alert</strong>
+                <p>Press Space to dismiss the current alert notification. Same as clicking the Dismiss button.</p>
+              </div>
+            </div>
+            <div class="shortcut-item">
               <div class="shortcut-key">D</div>
               <div class="shortcut-description">
                 <strong>Toggle Dim Mode</strong>

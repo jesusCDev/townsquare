@@ -1,11 +1,17 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { dismissAlertSignal } from '$lib/stores/alertActions';
 
   let alerts: any[] = [];
   let activeAlert: any | null = null;
   let interval: ReturnType<typeof setInterval>;
   let dismissed = false;
   let dismissedAlerts: Set<string> = new Set();
+
+  // Listen for dismiss signal from keyboard shortcuts
+  $: if ($dismissAlertSignal && activeAlert && !dismissed) {
+    dismissAlert();
+  }
 
   // Load dismissed alerts from localStorage
   if (typeof window !== 'undefined') {

@@ -37,6 +37,17 @@
       return;
     }
 
+    // Number keys 1-9 - Toggle habits
+    if (event.key >= '1' && event.key <= '9') {
+      event.preventDefault();
+      const index = parseInt(event.key) - 1;
+      const habitList = $habits;
+      if (index >= 0 && index < habitList.length) {
+        handleHabitClick(habitList[index].id);
+      }
+      return;
+    }
+
     // D key - Toggle dim mode
     if (event.key === 'd' || event.key === 'D') {
       event.preventDefault();
