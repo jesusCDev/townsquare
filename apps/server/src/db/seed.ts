@@ -2,113 +2,128 @@ import { db } from './index.js';
 import { habits, scheduleBlocks, settings } from './schema.js';
 import { nanoid } from 'nanoid';
 import { logger } from '../lib/logger.js';
+import { count } from 'drizzle-orm';
 
 async function seedDatabase() {
   logger.info('Seeding database with initial data...');
 
   try {
-    // Default habits
-    await db.insert(habits).values([
-      {
-        id: nanoid(),
-        name: 'Workout',
-        icon: '💪',
-        color: '#22c55e',
-        targetCount: 1,
-        timedWindows: JSON.stringify([
-          { start: '10:30', end: '12:30', days: 127 }
-        ]),
-        position: 0,
-      },
-      {
-        id: nanoid(),
-        name: 'Brush Teeth AM',
-        icon: '🦷',
-        color: '#3b82f6',
-        targetCount: 1,
-        timedWindows: JSON.stringify([
-          { start: '07:00', end: '09:00', days: 127 }
-        ]),
-        position: 1,
-      },
-      {
-        id: nanoid(),
-        name: 'Brush Teeth PM',
-        icon: '🦷',
-        color: '#3b82f6',
-        targetCount: 1,
-        timedWindows: JSON.stringify([
-          { start: '21:00', end: '23:00', days: 127 }
-        ]),
-        position: 2,
-      },
-    ]).onConflictDoNothing();
+    // Check if habits already exist - skip seeding if so
+    const [habitCount] = await db.select({ count: count() }).from(habits);
+    if (habitCount.count > 0) {
+      logger.info(`Database already has ${habitCount.count} habits, skipping habit seeding`);
+    } else {
+      // Default habits
+      await db.insert(habits).values([
+        {
+          id: nanoid(),
+          name: 'Workout',
+          icon: '💪',
+          color: '#22c55e',
+          targetCount: 1,
+          timedWindows: JSON.stringify([
+            { start: '10:30', end: '12:30', days: 127 }
+          ]),
+          position: 0,
+        },
+        {
+          id: nanoid(),
+          name: 'Brush Teeth AM',
+          icon: '🦷',
+          color: '#3b82f6',
+          targetCount: 1,
+          timedWindows: JSON.stringify([
+            { start: '07:00', end: '09:00', days: 127 }
+          ]),
+          position: 1,
+        },
+        {
+          id: nanoid(),
+          name: 'Brush Teeth PM',
+          icon: '🦷',
+          color: '#3b82f6',
+          targetCount: 1,
+          timedWindows: JSON.stringify([
+            { start: '21:00', end: '23:00', days: 127 }
+          ]),
+          position: 2,
+        },
+      ]);
+      logger.info('Seeded default habits');
+    }
 
-    // Default schedule blocks (weekdays)
-    await db.insert(scheduleBlocks).values([
-      {
-        id: nanoid(),
-        name: 'Work',
-        color: '#3b82f6',
-        icon: '💼',
-        startTime: '07:00',
-        endTime: '10:30',
-        daysMask: 31, // Mon-Fri
-        position: 0,
-      },
-      {
-        id: nanoid(),
-        name: 'Workout',
-        color: '#22c55e',
-        icon: '💪',
-        startTime: '10:30',
-        endTime: '12:30',
-        daysMask: 127, // Every day
-        position: 1,
-      },
-      {
-        id: nanoid(),
-        name: 'Lunch',
-        color: '#f59e0b',
-        icon: '🍽️',
-        startTime: '12:30',
-        endTime: '13:00',
-        daysMask: 127,
-        position: 2,
-      },
-      {
-        id: nanoid(),
-        name: 'Work',
-        color: '#3b82f6',
-        icon: '💼',
-        startTime: '13:00',
-        endTime: '17:00',
-        daysMask: 31, // Mon-Fri
-        position: 3,
-      },
-      {
-        id: nanoid(),
-        name: 'Side Project',
-        color: '#8b5cf6',
-        icon: '🚀',
-        startTime: '17:00',
-        endTime: null,
-        daysMask: 31, // Mon-Fri
-        position: 4,
-      },
-      {
-        id: nanoid(),
-        name: 'Side Project',
-        color: '#8b5cf6',
-        icon: '🚀',
-        startTime: '08:00',
-        endTime: '10:30',
-        daysMask: 96, // Sat-Sun
-        position: 5,
-      },
-    ]).onConflictDoNothing();
+    // Check if schedule blocks already exist - skip seeding if so
+    const [scheduleCount] = await db.select({ count: count() }).from(scheduleBlocks);
+    if (scheduleCount.count > 0) {
+      logger.info(`Database already has ${scheduleCount.count} schedule blocks, skipping schedule seeding`);
+    } else {
+      // Default schedule blocks
+      await db.insert(scheduleBlocks).values([
+        {
+          id: nanoid(),
+          name: 'Work',
+          color: '#3b82f6',
+          icon: '💼',
+          startTime: '07:00',
+          endTime: '10:30',
+          daysMask: 31, // Mon-Fri
+          position: 0,
+        },
+        {
+          id: nanoid(),
+          name: 'Workout',
+          color: '#22c55e',
+          icon: '💪',
+          startTime: '10:30',
+          endTime: '12:30',
+          daysMask: 127, // Every day
+          position: 1,
+        },
+        {
+          id: nanoid(),
+          name: 'Lunch',
+          color: '#f59e0b',
+          icon: '🍽️',
+          startTime: '12:30',
+          endTime: '13:00',
+          daysMask: 127,
+          position: 2,
+        },
+        {
+          id: nanoid(),
+          name: 'Work',
+          color: '#3b82f6',
+          icon: '💼',
+          startTime: '13:00',
+          endTime: '17:00',
+          daysMask: 31, // Mon-Fri
+          position: 3,
+        },
+        {
+          id: nanoid(),
+          name: 'Side Project',
+          color: '#8b5cf6',
+          icon: '🚀',
+          startTime: '17:00',
+          endTime: null,
+          daysMask: 31, // Mon-Fri
+          position: 4,
+        },
+        {
+          id: nanoid(),
+          name: 'Side Project',
+          color: '#8b5cf6',
+          icon: '🚀',
+          startTime: '08:00',
+          endTime: '10:30',
+          daysMask: 96, // Sat-Sun
+          position: 5,
+        },
+      ]);
+      logger.info('Seeded default schedule blocks');
+    }
 
-    // Default settings
+    // Default settings - these use key as primary key, so onConflictDoNothing works
     await db.insert(settings).values([
       { key: 'nightMode.start', value: '"20:00"', type: 'string' },
       { key: 'nightMode.end', value: '"06:00"', type: 'string' },
