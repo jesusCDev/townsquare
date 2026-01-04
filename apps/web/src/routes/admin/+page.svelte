@@ -39,6 +39,7 @@
   $: scheduleKey = newBlock.daysMask;
   $: alertKey = newAlert.daysMask;
   $: editBlockKey = editingBlock?.daysMask ?? 0;
+  $: editAlertKey = editingAlert?.daysMask ?? 0;
 
   // Alerts
   let alerts: any[] = [];
@@ -48,6 +49,7 @@
     daysMask: 31, // Weekdays by default
     gracePeriod: 5,
   };
+  let editingAlert: any = null;
 
   // Settings
   let dimTimeout = 15;
@@ -153,6 +155,59 @@
 
   function isAlertDaySelected(dayIndex: number): boolean {
     return (newAlert.daysMask & (1 << dayIndex)) !== 0;
+  }
+
+  function startEditAlert(alertItem: any) {
+    editingAlert = { ...alertItem };
+  }
+
+  function cancelEditAlert() {
+    editingAlert = null;
+  }
+
+  async function saveEditAlert() {
+    if (!editingAlert) return;
+
+    try {
+      await fetch(`/api/alerts/${editingAlert.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingAlert.name,
+          time: editingAlert.time,
+          daysMask: editingAlert.daysMask,
+          gracePeriod: editingAlert.gracePeriod,
+        }),
+      });
+      await loadAlerts();
+      editingAlert = null;
+    } catch (error) {
+      console.error('Failed to update alert:', error);
+      alert('Failed to update alert');
+    }
+  }
+
+  function toggleEditAlertDay(dayIndex: number) {
+    if (!editingAlert) return;
+    const mask = 1 << dayIndex;
+    editingAlert.daysMask = editingAlert.daysMask ^ mask;
+    editingAlert = { ...editingAlert };
+  }
+
+  function isEditAlertDaySelected(dayIndex: number): boolean {
+    return editingAlert && (editingAlert.daysMask & (1 << dayIndex)) !== 0;
+  }
+
+  function setEditAlertDayPreset(preset: 'all' | 'weekdays' | 'weekend') {
+    if (!editingAlert) return;
+    if (preset === 'all') {
+      editingAlert.daysMask = 127;
+    } else if (preset === 'weekdays') {
+      editingAlert.daysMask = 31;
+    } else if (preset === 'weekend') {
+      editingAlert.daysMask = 96;
+    }
+    editingAlert = { ...editingAlert };
   }
 
   function setAlertDayPreset(preset: 'all' | 'weekdays' | 'weekend') {
@@ -1281,9 +1336,12 @@
           <div class="item">
             <span class="icon">⏰</span>
             <span class="name">{alertItem.name}</span>
-            <span class="time">{alertItem.time}</span>
+            <span class="time">{formatTimeStr(alertItem.time, $timeFormat)}</span>
             <span class="badge" style="background: #f59e0b;">{getDayMaskLabel(alertItem.daysMask)}</span>
             <span class="badge" style="background: #8b5cf6;">Grace: {alertItem.gracePeriod}m</span>
+            <button class="edit-btn" on:click={() => startEditAlert(alertItem)}>
+              Edit
+            </button>
             <button class="delete-btn" on:click={() => deleteAlert(alertItem.id)}>
               Delete
             </button>
@@ -1295,6 +1353,74 @@
         <p class="empty-message">No alerts yet. Create one above to get started.</p>
       {/if}
     </div>
+
+    <!-- Edit Alert Modal -->
+    {#if editingAlert}
+      <div class="modal-overlay" on:click={cancelEditAlert}>
+        <div class="modal" on:click|stopPropagation>
+          <h2>Edit Alert</h2>
+
+          <div class="form">
+            <div class="form-row">
+              <input
+                type="text"
+                bind:value={editingAlert.name}
+                placeholder="Alert name"
+                class="input-field"
+              />
+            </div>
+            <div class="form-row">
+              <label>
+                Time:
+                <input type="time" bind:value={editingAlert.time} class="input-field" />
+              </label>
+              <label>
+                Grace Period:
+                <input type="number" bind:value={editingAlert.gracePeriod} min="0" max="60" class="input-field" />
+                <span class="unit">minutes</span>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>Days:</label>
+              <div class="days-controls">
+                <div class="preset-buttons">
+                  <button type="button" class="preset-btn" on:click={() => setEditAlertDayPreset('all')}>
+                    All Days
+                  </button>
+                  <button type="button" class="preset-btn" on:click={() => setEditAlertDayPreset('weekdays')}>
+                    Weekdays
+                  </button>
+                  <button type="button" class="preset-btn" on:click={() => setEditAlertDayPreset('weekend')}>
+                    Weekend
+                  </button>
+                </div>
+                <div class="days-selector">
+                  {#each dayNames as day, i}
+                    <button
+                      type="button"
+                      class="day-btn"
+                      class:selected={(editAlertKey & (1 << i)) !== 0}
+                      on:click={() => toggleEditAlertDay(i)}
+                    >
+                      {day}
+                    </button>
+                  {/each}
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" class="cancel-btn" on:click={cancelEditAlert}>
+                Cancel
+              </button>
+              <button type="button" class="save-btn" on:click={saveEditAlert}>
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    {/if}
   {:else if activeTab === 'settings'}
     <div class="section">
       <h2>Display Settings</h2>
@@ -1728,6 +1854,7 @@
   /* Schedule Preview Timeline */
   .schedule-preview {
     margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
     padding: 1rem;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.1);

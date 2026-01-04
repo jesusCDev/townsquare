@@ -66,18 +66,40 @@ export const alertRoutes: FastifyPluginAsync = async (app) => {
     };
   });
 
+  // Update alert
+  app.patch('/api/alerts/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = createAlertSchema.partial().parse(request.body);
+
+    const updateData: Record<string, any> = {};
+    if (body.name !== undefined) updateData.title = body.name;
+    if (body.time !== undefined) updateData.time = body.time;
+    if (body.daysMask !== undefined) updateData.daysMask = body.daysMask;
+    if (body.gracePeriod !== undefined) updateData.warnMinutes = body.gracePeriod;
+
+    await db
+      .update(reminders)
+      .set(updateData)
+      .where(eq(reminders.id, id));
+
+    // Emit WebSocket event
+    app.io.emit('alert:updated', { alertId: id, ...updateData });
+
+    return { success: true };
+  });
+
   // Delete alert
   app.delete('/api/alerts/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    
+
     await db
       .update(reminders)
       .set({ isActive: false })
       .where(eq(reminders.id, id));
-    
+
     // Emit WebSocket event
     app.io.emit('alert:deleted', { alertId: id });
-    
+
     return { success: true };
   });
 };

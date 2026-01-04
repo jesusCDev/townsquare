@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { habits, loading, loadHabits } from '$lib/stores/habits';
   import { socket } from '$lib/stores/socket';
+  import { nightModeInfo, temporarilyDisableDim, manuallyEnableDim } from '$lib/stores/nightmode';
   import { format, isSameDay } from 'date-fns';
 
   interface HabitEntry {
@@ -18,11 +19,43 @@
   let timeInterval: ReturnType<typeof setInterval>;
   let processingHabits = new Set<string>();
   let socketUnsubscribe: (() => void) | null = null;
+  let toastMessage = '';
+  let showToast = false;
+
+  function showNotification(message: string) {
+    toastMessage = message;
+    showToast = true;
+    setTimeout(() => {
+      showToast = false;
+    }, 2000);
+  }
+
+  function handleKeydown(event: KeyboardEvent) {
+    // Ignore if user is typing in an input field
+    if (event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement) {
+      return;
+    }
+
+    // D key - Toggle dim mode
+    if (event.key === 'd' || event.key === 'D') {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if ($nightModeInfo.isActive) {
+        temporarilyDisableDim();
+        showNotification('Dim mode disabled');
+      } else {
+        manuallyEnableDim();
+        showNotification('Dim mode enabled');
+      }
+    }
+  }
 
   onMount(async () => {
     await loadHabits();
     await new Promise(resolve => setTimeout(resolve, 0));
-    
+
     const currentHabits = $habits;
     if (currentHabits.length > 0) {
       const entryPromises = currentHabits.map(async habit => {
@@ -30,7 +63,7 @@
         return { habitId: habit.id, entries };
       });
       const results = await Promise.all(entryPromises);
-      
+
       const newEntries: Record<string, HabitEntry[]> = {};
       results.forEach(({ habitId, entries }) => {
         newEntries[habitId] = entries;
@@ -38,18 +71,23 @@
       habitEntries = newEntries;
       entriesLoaded = true;
     }
-    
+
     // Update current time every minute
     timeInterval = setInterval(() => {
       currentTime = new Date();
     }, 60000);
-    
+
+    // Add keyboard listener for dim mode toggle
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', handleKeydown, true);
+    }
+
     // Listen for entry updates from other clients (e.g., dashboard)
     socketUnsubscribe = socket.subscribe(($socket) => {
       if ($socket) {
         // Remove any existing listener first
         $socket.off('habit:entry-updated');
-        
+
         // Add the listener
         $socket.on('habit:entry-updated', async (data: { habitId: string; date: string }) => {
           // Reload entries for the updated habit
@@ -68,6 +106,9 @@
     if (socketUnsubscribe) socketUnsubscribe();
     if ($socket) {
       $socket.off('habit:entry-updated');
+    }
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('keydown', handleKeydown, true);
     }
   });
 
@@ -296,6 +337,12 @@
     {/if}
   </div>
 
+  <!-- Toast Notification -->
+  {#if showToast}
+    <div class="toast" class:show={showToast}>
+      {toastMessage}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -495,6 +542,35 @@
       padding-bottom: max(1rem, env(safe-area-inset-bottom));
       padding-left: max(1rem, env(safe-area-inset-left));
       padding-right: max(1rem, env(safe-area-inset-right));
+    }
+  }
+
+  /* Toast notification */
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: rgba(0, 0, 0, 0.9);
+    color: var(--accent-primary);
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    border: 2px solid var(--accent-primary);
+    font-weight: 600;
+    font-size: 0.95rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6),
+                0 0 20px rgba(103, 254, 153, 0.3);
+    z-index: 10000;
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translateX(100px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
     }
   }
 </style>
