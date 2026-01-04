@@ -7,6 +7,102 @@
   let currentTime = new Date();
   let interval: ReturnType<typeof setInterval>;
 
+  // Curated progress gradient palettes - each guaranteed to look good
+  const progressPalettes = [
+    { name: 'mint', primary: 'rgba(103, 254, 153, 0.5)', secondary: 'rgba(52, 211, 153, 0.3)', glow: 'rgba(103, 254, 153, 0.15)' },
+    { name: 'sky', primary: 'rgba(56, 189, 248, 0.5)', secondary: 'rgba(59, 130, 246, 0.3)', glow: 'rgba(56, 189, 248, 0.15)' },
+    { name: 'violet', primary: 'rgba(167, 139, 250, 0.5)', secondary: 'rgba(139, 92, 246, 0.3)', glow: 'rgba(167, 139, 250, 0.15)' },
+    { name: 'rose', primary: 'rgba(251, 113, 133, 0.5)', secondary: 'rgba(244, 63, 94, 0.3)', glow: 'rgba(251, 113, 133, 0.15)' },
+    { name: 'amber', primary: 'rgba(251, 191, 36, 0.5)', secondary: 'rgba(245, 158, 11, 0.3)', glow: 'rgba(251, 191, 36, 0.15)' },
+    { name: 'cyan', primary: 'rgba(34, 211, 238, 0.5)', secondary: 'rgba(6, 182, 212, 0.3)', glow: 'rgba(34, 211, 238, 0.15)' },
+    { name: 'lime', primary: 'rgba(163, 230, 53, 0.5)', secondary: 'rgba(132, 204, 22, 0.3)', glow: 'rgba(163, 230, 53, 0.15)' },
+    { name: 'orange', primary: 'rgba(251, 146, 60, 0.5)', secondary: 'rgba(249, 115, 22, 0.3)', glow: 'rgba(251, 146, 60, 0.15)' },
+  ];
+
+  // Parse hex/rgb color to HSL for comparison
+  function parseColorToHSL(color: string): { h: number; s: number; l: number } | null {
+    let r = 0, g = 0, b = 0;
+
+    // Handle hex colors
+    if (color.startsWith('#')) {
+      const hex = color.slice(1);
+      if (hex.length === 3) {
+        r = parseInt(hex[0] + hex[0], 16);
+        g = parseInt(hex[1] + hex[1], 16);
+        b = parseInt(hex[2] + hex[2], 16);
+      } else if (hex.length === 6) {
+        r = parseInt(hex.slice(0, 2), 16);
+        g = parseInt(hex.slice(2, 4), 16);
+        b = parseInt(hex.slice(4, 6), 16);
+      }
+    }
+    // Handle rgb/rgba
+    else if (color.startsWith('rgb')) {
+      const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      if (match) {
+        r = parseInt(match[1]);
+        g = parseInt(match[2]);
+        b = parseInt(match[3]);
+      }
+    } else {
+      return null;
+    }
+
+    // Convert RGB to HSL
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0;
+    const l = (max + min) / 2;
+
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+        case g: h = ((b - r) / d + 2) / 6; break;
+        case b: h = ((r - g) / d + 4) / 6; break;
+      }
+    }
+
+    return { h: h * 360, s: s * 100, l: l * 100 };
+  }
+
+  // Get the best matching progress palette for a given block color
+  function getProgressPalette(blockColor: string): typeof progressPalettes[0] {
+    const blockHSL = parseColorToHSL(blockColor);
+
+    // Default to mint if we can't parse the color
+    if (!blockHSL) return progressPalettes[0];
+
+    // Map hue ranges to palettes (approximate hue values)
+    const hue = blockHSL.h;
+
+    // Very dark or very light colors - use mint (universal)
+    if (blockHSL.l < 20 || blockHSL.l > 85) return progressPalettes[0];
+
+    // Low saturation (grays) - use cyan for nice contrast
+    if (blockHSL.s < 15) return progressPalettes[5]; // cyan
+
+    // Map by hue ranges
+    if (hue >= 0 && hue < 30) return progressPalettes[3];     // red -> rose
+    if (hue >= 30 && hue < 60) return progressPalettes[7];    // orange -> orange
+    if (hue >= 60 && hue < 90) return progressPalettes[4];    // yellow -> amber
+    if (hue >= 90 && hue < 150) return progressPalettes[6];   // green -> lime
+    if (hue >= 150 && hue < 190) return progressPalettes[5];  // cyan -> cyan
+    if (hue >= 190 && hue < 250) return progressPalettes[1];  // blue -> sky
+    if (hue >= 250 && hue < 290) return progressPalettes[2];  // purple -> violet
+    if (hue >= 290 && hue < 330) return progressPalettes[3];  // pink -> rose
+    if (hue >= 330) return progressPalettes[3];               // magenta -> rose
+
+    return progressPalettes[0]; // fallback to mint
+  }
+
+  // Generate CSS gradient string for progress
+  function getProgressGradient(blockColor: string): string {
+    const palette = getProgressPalette(blockColor);
+    return `linear-gradient(90deg, ${palette.primary} 0%, ${palette.secondary} 70%, ${palette.glow} 90%, transparent 100%)`;
+  }
+
   let previousBlockId: string | null = null;
 
   onMount(async () => {
@@ -233,12 +329,13 @@
         {@const progress = isActive ? getBlockProgress(block) : 0}
         {@const timeRemaining = isActive ? formatTimeRemaining(block) : ''}
         {@const isUrgent = isActive && timeRemaining && (timeRemaining.includes('m') && !timeRemaining.includes('h') && parseInt(timeRemaining) <= 5)}
+        {@const progressGradient = isActive ? getProgressGradient(block.color) : ''}
         <div
           class="block"
           class:active={isActive}
           class:urgent={isUrgent}
           class:free-time={isFreeTime}
-          style="width: {adjustedWidth}%; background: {block.color}; {isActive ? 'height: 200px;' : ''} {isActive ? `--progress-width: ${progress}%;` : ''}"
+          style="width: {adjustedWidth}%; background: {block.color}; {isActive ? 'height: 200px;' : ''} {isActive ? `--progress-width: ${progress}%; --progress-gradient: ${progressGradient};` : ''}"
           title="{block.name}: {block.startTime} - {block.endTime || 'end'}"
         >
           {#if isActive}
@@ -358,14 +455,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(
-      90deg,
-      rgba(103, 254, 153, 0.4) 0%,
-      rgba(103, 254, 153, 0.35) 70%,
-      rgba(103, 254, 153, 0.25) 85%,
-      rgba(103, 254, 153, 0.1) 95%,
-      transparent 100%
-    );
+    background: var(--progress-gradient, linear-gradient(90deg, rgba(103, 254, 153, 0.5) 0%, rgba(52, 211, 153, 0.3) 70%, rgba(103, 254, 153, 0.15) 90%, transparent 100%));
     border-radius: 12px;
     pointer-events: none;
     width: var(--progress-width, 0%);
