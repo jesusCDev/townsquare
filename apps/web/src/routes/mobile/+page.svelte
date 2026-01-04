@@ -80,8 +80,10 @@
         newEntries[habitId] = entries;
       });
       habitEntries = newEntries;
-      entriesLoaded = true;
     }
+
+    // Always mark entries as loaded, even if no habits exist
+    entriesLoaded = true;
 
     // Update current time every minute
     timeInterval = setInterval(() => {

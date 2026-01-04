@@ -23,27 +23,29 @@
 
   onMount(async () => {
     await loadHabits();
-    
+
     // Wait a tick for the store to update
     await new Promise(resolve => setTimeout(resolve, 0));
-    
+
     const currentHabits = $habits;
-    
+
     if (currentHabits.length > 0) {
       const entryPromises = currentHabits.map(async habit => {
         const entries = await loadEntriesForHabit(habit.id);
         return { habitId: habit.id, entries };
       });
       const results = await Promise.all(entryPromises);
-      
+
       // Build new object to trigger reactivity
       const newEntries: Record<string, HabitEntry[]> = {};
       results.forEach(({ habitId, entries }) => {
         newEntries[habitId] = entries;
       });
       habitEntries = newEntries;
-      entriesLoaded = true;
     }
+
+    // Always mark entries as loaded, even if no habits exist
+    entriesLoaded = true;
     
     // Update current time every minute
     timeInterval = setInterval(() => {
@@ -302,7 +304,10 @@
         <div class="habit-name-col"></div>
         <div class="days-grid">
           {#each days as day, i}
-            {#if i % 5 === 0}
+            {@const isToday = isSameDay(day, new Date())}
+            {#if isToday}
+              <div class="date-label today-label">Today</div>
+            {:else if i % 5 === 0}
               <div class="date-label">{format(day, 'M/d')}</div>
             {:else}
               <div class="date-spacer"></div>
@@ -444,6 +449,12 @@
     font-size: 0.65rem;
   }
 
+  .date-label.today-label {
+    color: var(--accent-primary);
+    font-weight: 600;
+    margin-left: 8px;
+  }
+
   .habit-row {
     display: grid;
     grid-template-columns: 180px 1fr 100px;
@@ -502,6 +513,18 @@
   .day-cell.today {
     border: 2px solid var(--accent-primary);
     box-shadow: 0 0 0 3px rgba(103, 254, 153, 0.2);
+    margin-left: 8px;
+    position: relative;
+  }
+
+  .day-cell.today::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: -4px;
+    bottom: -4px;
+    width: 1px;
+    background: linear-gradient(to bottom, transparent, rgba(103, 254, 153, 0.4), transparent);
   }
 
   .stats-col {
