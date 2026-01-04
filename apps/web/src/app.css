@@ -93,10 +93,7 @@ body::before {
   z-index: 0;
 }
 
-.night-mode {
-  filter: brightness(0.4) contrast(1.15);
-  transition: filter 30s ease;
-}
+/* Night mode is now handled via overlay in +layout.svelte for smoother transitions */
 
 /* Typography */
 .font-mono {
