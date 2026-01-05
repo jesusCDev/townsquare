@@ -278,8 +278,12 @@
     return streak;
   }
 
-  $: days = Array.from({ length: daysToShow }, (_, i) => subDays(new Date(), daysToShow - 1 - i));
-  
+  // Derive today from currentTime so it updates at midnight
+  $: today = new Date(currentTime.getFullYear(), currentTime.getMonth(), currentTime.getDate());
+
+  // days array now depends on currentTime, so it recalculates at midnight
+  $: days = Array.from({ length: daysToShow }, (_, i) => subDays(today, daysToShow - 1 - i));
+
   // Force reactivity when habitEntries changes
   $: habitsWithEntries = $habits.map(h => ({ ...h, _entriesHash: JSON.stringify(habitEntries[h.id]) }));
 </script>
@@ -304,7 +308,7 @@
         <div class="habit-name-col"></div>
         <div class="days-grid">
           {#each days as day, i}
-            {@const isToday = isSameDay(day, new Date())}
+            {@const isToday = isSameDay(day, today)}
             {#if isToday}
               <div class="date-label today-label">Today</div>
             {:else if i % 5 === 0}
@@ -333,7 +337,7 @@
             {#each days as day}
               {@const entry = getEntryForDate(habit.id, day)}
               {@const count = entry?.count || 0}
-              {@const isToday = isSameDay(day, new Date())}
+              {@const isToday = isSameDay(day, today)}
               <button
                 class="day-cell {getIntensityClass(count, habit.targetCount)}"
                 class:today={isToday}
