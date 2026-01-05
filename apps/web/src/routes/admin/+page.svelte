@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation';
   import { timeFormat } from '$lib/stores/timeFormat';
 
-  let activeTab: 'habits' | 'schedule' | 'alerts' | 'settings' = 'habits';
+  let activeTab: 'habits' | 'schedule' | 'alerts' | 'countdowns' | 'settings' = 'habits';
 
   // Habits
   let habits: any[] = [];
@@ -51,15 +51,34 @@
   };
   let editingAlert: any = null;
 
+  // Countdowns
+  let countdowns: any[] = [];
+  let newCountdown = {
+    label: '',
+    targetDate: '',
+    icon: '',
+    color: '#67fe99',
+  };
+  let editingCountdown: any = null;
+
   // Settings
   let dimTimeout = 15;
   let nightModeStart = '20:00';
   let nightModeEnd = '06:00';
 
+  // Tile visibility
+  let showCountdownTile = true;
+  let showDaysWonTile = true;
+
+  // Auto-backup settings
+  let autoBackupEnabled = false;
+  let autoBackupPath = '';
+
   onMount(async () => {
     await loadHabits();
     await loadSchedule();
     await loadAlerts();
+    await loadCountdowns();
     await loadSettings();
   });
 
@@ -71,9 +90,101 @@
         dimTimeout = data.settings.dimTimeout || 15;
         nightModeStart = data.settings['nightMode.start'] || '20:00';
         nightModeEnd = data.settings['nightMode.end'] || '06:00';
+        showCountdownTile = data.settings['tiles.countdown'] !== false;
+        showDaysWonTile = data.settings['tiles.daysWon'] !== false;
+        autoBackupEnabled = data.settings['backup.autoEnabled'] === true;
+        autoBackupPath = data.settings['backup.path'] || '';
       }
     } catch (error) {
       console.error('Failed to load settings:', error);
+    }
+  }
+
+  async function loadCountdowns() {
+    try {
+      const response = await fetch('/api/countdowns');
+      const data = await response.json();
+      countdowns = data.countdowns || [];
+    } catch (error) {
+      console.error('Failed to load countdowns:', error);
+    }
+  }
+
+  async function createCountdown() {
+    if (!newCountdown.label || !newCountdown.targetDate) {
+      alert('Label and target date are required');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/countdowns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCountdown),
+      });
+
+      if (response.ok) {
+        await loadCountdowns();
+        newCountdown = { label: '', targetDate: '', icon: '', color: '#67fe99' };
+      }
+    } catch (error) {
+      console.error('Failed to create countdown:', error);
+      alert('Failed to create countdown');
+    }
+  }
+
+  async function deleteCountdown(id: string) {
+    if (!confirm('Are you sure you want to delete this countdown?')) return;
+
+    try {
+      await fetch(`/api/countdowns/${id}`, { method: 'DELETE' });
+      await loadCountdowns();
+    } catch (error) {
+      console.error('Failed to delete countdown:', error);
+    }
+  }
+
+  function startEditCountdown(countdown: any) {
+    editingCountdown = { ...countdown };
+  }
+
+  function cancelEditCountdown() {
+    editingCountdown = null;
+  }
+
+  async function saveEditCountdown() {
+    if (!editingCountdown) return;
+
+    try {
+      await fetch(`/api/countdowns/${editingCountdown.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: editingCountdown.label,
+          targetDate: editingCountdown.targetDate,
+          icon: editingCountdown.icon,
+          color: editingCountdown.color,
+        }),
+      });
+      await loadCountdowns();
+      editingCountdown = null;
+    } catch (error) {
+      console.error('Failed to update countdown:', error);
+      alert('Failed to update countdown');
+    }
+  }
+
+  async function triggerAutoBackup() {
+    try {
+      const response = await fetch('/api/backup/auto-trigger', { method: 'POST' });
+      if (response.ok) {
+        alert('Auto-backup triggered successfully!');
+      } else {
+        alert('Failed to trigger auto-backup');
+      }
+    } catch (error) {
+      console.error('Failed to trigger auto-backup:', error);
+      alert('Failed to trigger auto-backup');
     }
   }
 
@@ -824,15 +935,22 @@
     >
       Schedule
     </button>
-    <button 
-      class="tab" 
+    <button
+      class="tab"
       class:active={activeTab === 'alerts'}
       on:click={() => activeTab = 'alerts'}
     >
       Alerts
     </button>
-    <button 
-      class="tab" 
+    <button
+      class="tab"
+      class:active={activeTab === 'countdowns'}
+      on:click={() => activeTab = 'countdowns'}
+    >
+      Countdowns
+    </button>
+    <button
+      class="tab"
       class:active={activeTab === 'settings'}
       on:click={() => activeTab = 'settings'}
     >
@@ -1421,6 +1539,123 @@
         </div>
       </div>
     {/if}
+  {:else if activeTab === 'countdowns'}
+    <div class="section">
+      <h2>Add New Countdown</h2>
+      <form class="form" on:submit|preventDefault={createCountdown}>
+        <div class="form-row">
+          <input
+            type="text"
+            bind:value={newCountdown.label}
+            placeholder="Label (e.g., License Renewal)"
+            required
+          />
+          <input
+            type="text"
+            bind:value={newCountdown.icon}
+            placeholder="Icon (emoji)"
+            maxlength="4"
+          />
+          <input
+            type="color"
+            bind:value={newCountdown.color}
+          />
+        </div>
+        <div class="form-row">
+          <label>
+            Target Date:
+            <input type="date" bind:value={newCountdown.targetDate} required />
+          </label>
+        </div>
+        <button type="submit" class="save-btn-form">
+          <span class="btn-icon">+</span> Add Countdown
+        </button>
+      </form>
+
+      <h2>Existing Countdowns</h2>
+      <div class="items-list">
+        {#each countdowns as countdown (countdown.id)}
+          <div class="item">
+            <span class="icon">{countdown.icon || '&#8987;'}</span>
+            <span class="name">{countdown.label}</span>
+            <span class="time">{countdown.targetDate}</span>
+            <span class="badge" style="background: {countdown.color};">
+              {Math.ceil((new Date(countdown.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days
+            </span>
+            <button class="edit-btn" on:click={() => startEditCountdown(countdown)}>
+              Edit
+            </button>
+            <button class="delete-btn" on:click={() => deleteCountdown(countdown.id)}>
+              Delete
+            </button>
+          </div>
+        {/each}
+      </div>
+
+      {#if countdowns.length === 0}
+        <p class="empty-message">No countdowns yet. Create one above to get started.</p>
+      {/if}
+    </div>
+
+    <!-- Edit Countdown Modal -->
+    {#if editingCountdown}
+      <div class="modal-overlay" on:click={cancelEditCountdown}>
+        <div class="modal" on:click|stopPropagation>
+          <h2>Edit Countdown</h2>
+
+          <div class="form">
+            <div class="form-group">
+              <label>Label</label>
+              <input
+                type="text"
+                bind:value={editingCountdown.label}
+                placeholder="e.g., License Renewal"
+                class="input-field"
+              />
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Icon</label>
+                <input
+                  type="text"
+                  bind:value={editingCountdown.icon}
+                  placeholder="Emoji"
+                  maxlength="4"
+                  class="input-field"
+                />
+              </div>
+              <div class="form-group">
+                <label>Color</label>
+                <input
+                  type="color"
+                  bind:value={editingCountdown.color}
+                  class="color-input"
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Target Date</label>
+              <input
+                type="date"
+                bind:value={editingCountdown.targetDate}
+                class="input-field"
+              />
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" class="cancel-btn" on:click={cancelEditCountdown}>
+                Cancel
+              </button>
+              <button type="button" class="save-btn" on:click={saveEditCountdown}>
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    {/if}
   {:else if activeTab === 'settings'}
     <div class="section">
       <h2>Display Settings</h2>
@@ -1488,6 +1723,44 @@
         </div>
       </div>
 
+      <h2 style="margin-top: 3rem;">Dashboard Tiles</h2>
+
+      <div class="setting-group">
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="showCountdown">Countdown Tile</label>
+            <p class="description">Show the countdown timer tile on the dashboard</p>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                bind:checked={showCountdownTile}
+                on:change={() => saveSetting('tiles.countdown', showCountdownTile)}
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="showDaysWon">Days Won Tile</label>
+            <p class="description">Show the days won statistics tile on the dashboard</p>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                bind:checked={showDaysWonTile}
+                on:change={() => saveSetting('tiles.daysWon', showDaysWonTile)}
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
       <h2 style="margin-top: 3rem;">Keyboard Shortcuts</h2>
       
       <div class="setting-group">
@@ -1521,7 +1794,7 @@
       </div>
 
       <h2 style="margin-top: 3rem;">Backup & Restore</h2>
-      
+
       <div class="setting-group">
         <div class="backup-section">
           <div class="backup-info">
@@ -1529,7 +1802,7 @@
             <p class="description">Download a backup of all your habits, schedule, alerts, and settings. Keep this file safe for data recovery.</p>
           </div>
           <button class="backup-btn export-btn" on:click={exportBackup}>
-            📥 Export Backup
+            Export Backup
           </button>
         </div>
 
@@ -1539,7 +1812,7 @@
             <p class="description">Restore data from a previous backup. This will replace all current data.</p>
           </div>
           <label class="backup-btn import-btn">
-            📤 Import Backup
+            Import Backup
             <input
               type="file"
               accept=".json"
@@ -1547,6 +1820,53 @@
               style="display: none;"
             />
           </label>
+        </div>
+      </div>
+
+      <h2 style="margin-top: 3rem;">Auto-Backup</h2>
+
+      <div class="setting-group">
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="autoBackupEnabled">Enable Auto-Backup</label>
+            <p class="description">Automatically backup data daily at 3:00 AM. Old backups (older than 7 days) are automatically deleted.</p>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                bind:checked={autoBackupEnabled}
+                on:change={() => saveSetting('backup.autoEnabled', autoBackupEnabled)}
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="autoBackupPath">Backup Directory</label>
+            <p class="description">Directory path where auto-backups will be saved (e.g., /home/user/backups)</p>
+          </div>
+          <div class="setting-control path-control">
+            <input
+              type="text"
+              id="autoBackupPath"
+              bind:value={autoBackupPath}
+              placeholder="/path/to/backup/folder"
+              on:change={() => saveSetting('backup.path', autoBackupPath)}
+            />
+          </div>
+        </div>
+
+        <div class="backup-section">
+          <div class="backup-info">
+            <h3>Test Auto-Backup</h3>
+            <p class="description">Manually trigger an auto-backup now to test your configuration.</p>
+          </div>
+          <button class="backup-btn test-btn" on:click={triggerAutoBackup} disabled={!autoBackupEnabled || !autoBackupPath}>
+            Run Backup Now
+          </button>
         </div>
       </div>
     </div>
@@ -2435,5 +2755,86 @@
     gap: 0.5rem;
     color: var(--text-secondary);
     font-size: 0.9rem;
+  }
+
+  /* Toggle Switch */
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 52px;
+    height: 28px;
+  }
+
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 28px;
+    transition: all 0.3s ease;
+  }
+
+  .toggle-slider::before {
+    position: absolute;
+    content: '';
+    height: 20px;
+    width: 20px;
+    left: 2px;
+    bottom: 2px;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 50%;
+    transition: all 0.3s ease;
+  }
+
+  .toggle-switch input:checked + .toggle-slider {
+    background-color: rgba(103, 254, 153, 0.3);
+    border-color: rgba(103, 254, 153, 0.5);
+  }
+
+  .toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(24px);
+    background-color: #67fe99;
+    box-shadow: 0 0 12px rgba(103, 254, 153, 0.5);
+  }
+
+  .toggle-switch input:focus + .toggle-slider {
+    box-shadow: 0 0 1px #67fe99;
+  }
+
+  /* Path input control */
+  .path-control {
+    flex: 1;
+  }
+
+  .path-control input {
+    width: 100%;
+    min-width: 300px;
+  }
+
+  /* Test button */
+  .test-btn {
+    background: rgba(103, 254, 153, 0.15);
+    border-color: rgba(103, 254, 153, 0.4);
+    color: #67fe99;
+  }
+
+  .test-btn:hover:not(:disabled) {
+    background: rgba(103, 254, 153, 0.25);
+    border-color: rgba(103, 254, 153, 0.6);
+  }
+
+  .test-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 </style>

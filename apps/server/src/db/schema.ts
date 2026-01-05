@@ -153,6 +153,24 @@ export const backups = sqliteTable('backups', {
 }));
 
 // ============================================
+// COUNTDOWNS
+// ============================================
+
+export const countdowns = sqliteTable('countdowns', {
+  id: text('id').primaryKey(),
+  label: text('label').notNull(),
+  targetDate: text('target_date').notNull(), // YYYY-MM-DD
+  icon: text('icon'),
+  color: text('color').default('#67fe99'),
+  position: integer('position').notNull().default(0),
+  isActive: integer('is_active', { mode: 'boolean' }).default(true),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+}, (table) => ({
+  positionIdx: index('countdowns_position_idx').on(table.position),
+  activeIdx: index('countdowns_active_idx').on(table.isActive),
+}));
+
+// ============================================
 // SETTINGS
 // ============================================
 

@@ -1,8 +1,9 @@
 import { FastifyPluginAsync } from 'fastify';
 import { db } from '../db/index.js';
-import { habits, habitEntries, scheduleBlocks, reminders, settings } from '../db/schema.js';
+import { habits, habitEntries, scheduleBlocks, reminders, settings, countdowns } from '../db/schema.js';
 import fs from 'fs/promises';
 import path from 'path';
+import { runAutoBackup } from '../jobs/auto-backup.js';
 
 export const backupRoutes: FastifyPluginAsync = async (app) => {
   // Export all data as JSON
@@ -13,6 +14,7 @@ export const backupRoutes: FastifyPluginAsync = async (app) => {
       const allSchedule = await db.select().from(scheduleBlocks);
       const allReminders = await db.select().from(reminders);
       const allSettings = await db.select().from(settings);
+      const allCountdowns = await db.select().from(countdowns);
 
       const backup = {
         version: '1.0.0',
@@ -23,6 +25,7 @@ export const backupRoutes: FastifyPluginAsync = async (app) => {
           scheduleBlocks: allSchedule,
           reminders: allReminders,
           settings: allSettings,
+          countdowns: allCountdowns,
         },
       };
 
@@ -32,6 +35,17 @@ export const backupRoutes: FastifyPluginAsync = async (app) => {
     } catch (error) {
       console.error('Failed to export backup:', error);
       reply.code(500).send({ error: 'Failed to export backup' });
+    }
+  });
+
+  // Trigger auto-backup manually (for testing)
+  app.post('/api/backup/auto-trigger', async (request, reply) => {
+    try {
+      await runAutoBackup(app.io);
+      return { success: true, message: 'Auto-backup triggered' };
+    } catch (error) {
+      console.error('Failed to trigger auto-backup:', error);
+      reply.code(500).send({ error: 'Failed to trigger auto-backup' });
     }
   });
 
@@ -73,6 +87,12 @@ export const backupRoutes: FastifyPluginAsync = async (app) => {
       if (backup.data.settings && backup.data.settings.length > 0) {
         await db.delete(settings);
         await db.insert(settings).values(backup.data.settings);
+      }
+
+      // Import countdowns
+      if (backup.data.countdowns && backup.data.countdowns.length > 0) {
+        await db.delete(countdowns);
+        await db.insert(countdowns).values(backup.data.countdowns);
       }
 
       // Emit WebSocket event

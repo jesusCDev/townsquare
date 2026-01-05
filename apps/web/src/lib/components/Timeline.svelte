@@ -381,14 +381,16 @@
 
 <style>
   .timeline-container {
-    padding: 1.75rem;
+    padding: 1rem 1.75rem 1.75rem;
     border-radius: 20px;
+    overflow: hidden;
   }
 
   .timeline-bar-wrapper {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    padding-top: 200px;
   }
 
   .timeline-bar {

@@ -5,9 +5,28 @@
   import HabitTracker from '$lib/components/HabitTracker.svelte';
   import Timeline from '$lib/components/Timeline.svelte';
   import AlertNotification from '$lib/components/AlertNotification.svelte';
+  import CountdownTile from '$lib/components/CountdownTile.svelte';
+  import DaysWonTile from '$lib/components/DaysWonTile.svelte';
   import { nightModeInfo, temporarilyDisableDim, manuallyEnableDim } from '$lib/stores/nightmode';
   import { habits } from '$lib/stores/habits';
   import { triggerDismissAlert } from '$lib/stores/alertActions';
+
+  // Tile visibility settings
+  let showCountdownTile = true;
+  let showDaysWonTile = true;
+
+  async function loadTileSettings() {
+    try {
+      const response = await fetch('/api/settings');
+      const data = await response.json();
+      if (data.settings) {
+        showCountdownTile = data.settings['tiles.countdown'] !== false;
+        showDaysWonTile = data.settings['tiles.daysWon'] !== false;
+      }
+    } catch (error) {
+      console.error('Failed to load tile settings:', error);
+    }
+  }
 
   let toastMessage = '';
   let showToast = false;
@@ -104,6 +123,7 @@
       // Add our handler in capture phase so it runs before the nightmode store's handler
       window.addEventListener('keydown', handleKeydown, true);
     }
+    loadTileSettings();
   });
 
   onDestroy(() => {
@@ -133,6 +153,22 @@
     <Timeline />
   </div>
 
+  <!-- Info Tiles Row -->
+  {#if showCountdownTile || showDaysWonTile}
+    <div class="tiles-row animate-in animate-in-4">
+      {#if showCountdownTile}
+        <div class="tile-half">
+          <CountdownTile />
+        </div>
+      {/if}
+      {#if showDaysWonTile}
+        <div class="tile-half">
+          <DaysWonTile />
+        </div>
+      {/if}
+    </div>
+  {/if}
+
   <!-- Alert Notification Overlay -->
   <AlertNotification />
 
@@ -146,27 +182,47 @@
 
 <style>
   .dashboard {
-    display: grid;
-    grid-template-rows: auto 1fr auto;
+    display: flex;
+    flex-direction: column;
     height: 100vh;
     width: 100vw;
-    padding: 1.5rem;
-    gap: 1.5rem;
+    padding: 1.25rem;
+    gap: 1rem;
     overflow: hidden;
     box-sizing: border-box;
   }
 
   .header-section {
-    grid-row: 1;
+    flex-shrink: 0;
   }
 
   .habit-section {
-    grid-row: 2;
+    flex: 0 1 auto;
     overflow-y: auto;
+    min-height: 0;
   }
 
   .timeline-section {
-    grid-row: 3;
+    flex-shrink: 0;
+  }
+
+  .tiles-row {
+    flex-shrink: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    height: 200px;
+  }
+
+  .tile-half {
+    min-width: 0;
+    height: 100%;
+  }
+
+  /* Adjust layout when only one tile is visible */
+  .tiles-row:has(.tile-half:only-child) {
+    grid-template-columns: 1fr;
+    max-width: 50%;
   }
 
   .toast {

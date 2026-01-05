@@ -355,9 +355,8 @@
 
 <style>
   .habit-tracker {
-    padding: 2rem;
+    padding: 1.5rem 2rem;
     border-radius: 20px;
-    height: 100%;
     display: flex;
     flex-direction: column;
   }
@@ -366,8 +365,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.75rem;
-    padding-bottom: 1.25rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 
