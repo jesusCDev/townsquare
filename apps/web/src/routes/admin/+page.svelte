@@ -704,16 +704,9 @@
       return;
     }
 
-    // Smart end time detection
+    // Smart end time detection (only fills to next block if no end time provided)
     const smartEndTime = smartDetectEndTime(newBlock.startTime, newBlock.endTime, newBlock.daysMask);
     const finalBlock = { ...newBlock, endTime: smartEndTime };
-
-    // Check for overlaps
-    const overlapError = checkScheduleOverlap(finalBlock.startTime, finalBlock.endTime, finalBlock.daysMask);
-    if (overlapError) {
-      alert(`Cannot create schedule block: ${overlapError}`);
-      return;
-    }
 
     try {
       const response = await fetch('/api/schedule', {
@@ -750,16 +743,9 @@
   async function saveEditBlock() {
     if (!editingBlock) return;
 
-    // Smart end time detection
+    // Smart end time detection (only fills to next block if no end time provided)
     const smartEndTime = smartDetectEndTime(editingBlock.startTime, editingBlock.endTime, editingBlock.daysMask, editingBlock.id);
     editingBlock.endTime = smartEndTime;
-
-    // Check for overlaps (excluding self)
-    const overlapError = checkScheduleOverlapExcluding(editingBlock.startTime, editingBlock.endTime, editingBlock.daysMask, editingBlock.id);
-    if (overlapError) {
-      alert(`Cannot update schedule block: ${overlapError}`);
-      return;
-    }
 
     try {
       await fetch(`/api/schedule/${editingBlock.id}`, {

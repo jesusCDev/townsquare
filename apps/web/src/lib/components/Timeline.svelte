@@ -153,6 +153,88 @@
     return [{ ...block, _startMinutes: startMinutes, _endMinutes: endMinutes }];
   }
 
+  // Resolve overlapping blocks: shorter duration blocks "win" over longer ones
+  function resolveOverlaps(blocks: any[]): any[] {
+    if (blocks.length === 0) return [];
+
+    // Calculate duration for each block (original duration, not segment duration)
+    const blocksWithDuration = blocks.map(block => ({
+      ...block,
+      _duration: block._endMinutes - block._startMinutes
+    }));
+
+    // Collect all time boundaries
+    const boundaries = new Set<number>();
+    for (const block of blocksWithDuration) {
+      boundaries.add(block._startMinutes);
+      boundaries.add(block._endMinutes);
+    }
+    const sortedBoundaries = Array.from(boundaries).sort((a, b) => a - b);
+
+    // For each time segment, find the winning block (shortest duration)
+    const segments: { start: number; end: number; block: any }[] = [];
+
+    for (let i = 0; i < sortedBoundaries.length - 1; i++) {
+      const segStart = sortedBoundaries[i];
+      const segEnd = sortedBoundaries[i + 1];
+
+      // Find all blocks that cover this segment
+      const coveringBlocks = blocksWithDuration.filter(
+        b => b._startMinutes <= segStart && b._endMinutes >= segEnd
+      );
+
+      if (coveringBlocks.length === 0) continue;
+
+      // Pick the shortest duration block (ties go to first in list, which is sorted by start time)
+      const winner = coveringBlocks.reduce((shortest, block) =>
+        block._duration < shortest._duration ? block : shortest
+      );
+
+      segments.push({ start: segStart, end: segEnd, block: winner });
+    }
+
+    // Merge consecutive segments with the same original block
+    const mergedBlocks: any[] = [];
+    let currentSegment: { start: number; end: number; block: any } | null = null;
+
+    for (const seg of segments) {
+      if (!currentSegment) {
+        currentSegment = { ...seg };
+      } else if (currentSegment.block.id === seg.block.id && currentSegment.end === seg.start) {
+        // Same block, extend it
+        currentSegment.end = seg.end;
+      } else {
+        // Different block or gap, push current and start new
+        mergedBlocks.push({
+          ...currentSegment.block,
+          _startMinutes: currentSegment.start,
+          _endMinutes: currentSegment.end,
+          // Generate unique ID for split segments
+          id: currentSegment.start === currentSegment.block._startMinutes &&
+              currentSegment.end === currentSegment.block._endMinutes
+            ? currentSegment.block.id
+            : `${currentSegment.block.id}-${currentSegment.start}-${currentSegment.end}`
+        });
+        currentSegment = { ...seg };
+      }
+    }
+
+    // Don't forget the last segment
+    if (currentSegment) {
+      mergedBlocks.push({
+        ...currentSegment.block,
+        _startMinutes: currentSegment.start,
+        _endMinutes: currentSegment.end,
+        id: currentSegment.start === currentSegment.block._startMinutes &&
+            currentSegment.end === currentSegment.block._endMinutes
+          ? currentSegment.block.id
+          : `${currentSegment.block.id}-${currentSegment.start}-${currentSegment.end}`
+      });
+    }
+
+    return mergedBlocks;
+  }
+
   function getCurrentDayBlocks() {
     const now = new Date();
     const dayOfWeek = now.getDay();
@@ -169,11 +251,14 @@
     // Sort by start time
     expandedBlocks.sort((a, b) => a._startMinutes - b._startMinutes);
 
+    // Resolve overlaps: shorter duration blocks take precedence
+    const resolvedBlocks = resolveOverlaps(expandedBlocks);
+
     // Fill gaps with "Free Time" blocks
     const blocksWithGaps: any[] = [];
     let lastEndMinutes = 0; // Start of day (midnight)
 
-    for (const block of expandedBlocks) {
+    for (const block of resolvedBlocks) {
       const startMinutes = block._startMinutes;
       const endMinutes = block._endMinutes;
 
