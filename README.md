@@ -91,12 +91,27 @@ pnpm docker:logs
 ### Raspberry Pi Deployment
 
 ```bash
-# First-time setup
-./scripts/setup-pi.sh
+# First-time setup (installs Node.js, pnpm, dependencies, sets up database)
+./install.sh
 
-# For updates
-./scripts/deploy.sh
+# Start the application
+./start.sh
+
+# Update to latest version (pulls changes, runs migrations, restarts)
+./update.sh           # Production mode
+./update.sh --dev     # Development mode
 ```
+
+**What `update.sh` does:**
+1. Stops existing application processes
+2. Pulls latest changes from GitHub
+3. Updates dependencies
+4. Runs database migrations (adds new tables/columns)
+5. Builds the application (production mode only)
+6. Starts application in background
+
+**View logs:** `tail -f logs/app.log`  
+**Stop application:** `kill $(cat .app.pid)`
 
 ## Project Structure
 

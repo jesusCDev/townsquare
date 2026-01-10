@@ -25,6 +25,9 @@ logs
 npm-debug.log*
 pnpm-debug.log*
 
+# Process management
+*.pid
+
 # OS
 .DS_Store
 Thumbs.db
