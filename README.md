@@ -111,7 +111,7 @@ pnpm docker:logs
 6. Starts application in background
 
 **View logs:** `tail -f logs/app.log`  
-**Stop application:** `kill $(cat .app.pid)`
+**Stop application:** `./stop.sh` or `kill $(cat .app.pid)`
 
 ## Project Structure
 

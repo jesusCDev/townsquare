@@ -30,20 +30,52 @@ log_step() {
 kill_existing() {
     log_step "Stopping existing TownSquare processes..."
     
+    # Kill by PID file if it exists
+    if [ -f ".app.pid" ]; then
+        local pid=$(cat .app.pid)
+        if ps -p $pid > /dev/null 2>&1; then
+            log_info "Killing process with PID $pid..."
+            kill -9 $pid 2>/dev/null || log_warn "Could not kill PID $pid"
+        fi
+        rm -f .app.pid
+    fi
+    
     # Kill processes on ports 3000 and 5173
-    for port in 3000 5173; do
+    for port in 3000 5173 5174; do
         if lsof -ti:$port >/dev/null 2>&1; then
             log_info "Killing process on port $port..."
             lsof -ti:$port | xargs kill -9 2>/dev/null || log_warn "Could not kill process on port $port"
-            sleep 1
+            sleep 0.5
         fi
     done
     
-    # Also kill by process name if using PM2 or similar
-    pkill -f "town-square" 2>/dev/null || true
-    pkill -f "lifeboard" 2>/dev/null || true
+    # Kill by process name patterns
+    pkill -9 -f "town-square" 2>/dev/null || true
+    pkill -9 -f "lifeboard" 2>/dev/null || true
+    pkill -9 -f "apps/server" 2>/dev/null || true
+    pkill -9 -f "apps/web" 2>/dev/null || true
     
-    log_info "Stopped all existing processes"
+    # Kill any node processes running from this directory
+    local current_dir=$(pwd)
+    pkill -9 -f "node.*${current_dir}" 2>/dev/null || true
+    
+    # Wait a moment for processes to die
+    sleep 1
+    
+    # Verify ports are clear
+    local ports_clear=true
+    for port in 3000 5173 5174; do
+        if lsof -ti:$port >/dev/null 2>&1; then
+            log_warn "Port $port still in use after cleanup!"
+            ports_clear=false
+        fi
+    done
+    
+    if [ "$ports_clear" = true ]; then
+        log_info "Successfully stopped all existing processes"
+    else
+        log_error "Some processes may still be running. Check manually with: lsof -i :3000 -i :5173"
+    fi
 }
 
 # Pull latest changes
