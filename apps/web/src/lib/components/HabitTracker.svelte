@@ -263,11 +263,14 @@
     draggedHabitId = null;
   }
 
+  // Helper to check if a day is a rest day during visual rendering
+  // A rest day is the FIRST consecutive missing day after a completed day
+  // This looks ahead to see if tomorrow gets completed (for past days)
   function isRestDay(habitId: string, date: Date): boolean {
     const entries = habitEntries[habitId] || [];
     const dateStr = format(date, 'yyyy-MM-dd');
     const prevDate = subDays(date, 1);
-    const nextDate = subDays(date, -1);
+    const nextDate = subDays(date, -1); // Tomorrow
     
     const prevDateStr = format(prevDate, 'yyyy-MM-dd');
     const nextDateStr = format(nextDate, 'yyyy-MM-dd');
@@ -280,7 +283,8 @@
     const hasPrevEntry = entries.some(e => e.date === prevDateStr && e.count > 0);
     if (!hasPrevEntry) return false;
     
-    // Check if next day has entry
+    // For visual display, check if next day has entry (only works for past days)
+    // This helps show rest days retroactively
     const hasNextEntry = entries.some(e => e.date === nextDateStr && e.count > 0);
     return hasNextEntry;
   }
@@ -294,7 +298,7 @@
     // If today is complete, include it in the streak and start from today
     // Otherwise, start from yesterday (today doesn't count yet)
     let currentDate = hasTodayEntry ? new Date() : subDays(new Date(), 1);
-    let restDayUsed = false;
+    let restDayAvailable = true; // Can use one rest day per streak
     
     while (true) {
       const dateStr = format(currentDate, 'yyyy-MM-dd');
@@ -302,18 +306,17 @@
       
       if (hasEntry) {
         streak++;
-        restDayUsed = false; // Reset rest day flag when we find an entry
+        restDayAvailable = true; // Reset rest day availability when we find an entry
         currentDate = subDays(currentDate, 1);
       } else {
-        // No entry - check if this can be a rest day
-        if (!restDayUsed && isRestDay(habitId, currentDate)) {
-          // This is a valid rest day
+        // No entry - check if we can use this as a rest day
+        if (restDayAvailable) {
+          // This is the first consecutive missing day - count it as a rest day
           streak++;
-          restDayUsed = true;
+          restDayAvailable = false; // Used our one rest day
           currentDate = subDays(currentDate, 1);
         } else {
-          // Either no rest day available or this isn't a valid rest day
-          // This breaks the streak
+          // Second consecutive missing day - this breaks the streak
           break;
         }
       }
