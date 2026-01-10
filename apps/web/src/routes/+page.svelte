@@ -10,6 +10,7 @@
   import { nightModeInfo, temporarilyDisableDim, manuallyEnableDim } from '$lib/stores/nightmode';
   import { habits } from '$lib/stores/habits';
   import { triggerDismissAlert } from '$lib/stores/alertActions';
+  import { toggleBlurMode } from '$lib/stores/blurmode';
 
   // Tile visibility settings
   let showCountdownTile = true;
@@ -115,6 +116,14 @@
         manuallyEnableDim();
         showNotification('Dim mode enabled');
       }
+      return;
+    }
+
+    // B key - Toggle blur mode
+    if (event.key === 'b' || event.key === 'B') {
+      event.preventDefault();
+      toggleBlurMode();
+      showNotification('Blur mode toggled');
     }
   }
 

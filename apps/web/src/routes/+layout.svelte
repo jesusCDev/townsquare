@@ -4,6 +4,7 @@
   import { afterNavigate } from '$app/navigation';
   import { socket, connectSocket } from '$lib/stores/socket';
   import { nightMode } from '$lib/stores/nightmode';
+  import { blurMode } from '$lib/stores/blurmode';
 
   let refreshPulse = false;
   let refreshInterval: ReturnType<typeof setInterval>;
@@ -40,6 +41,7 @@
 <div class="app-container">
   <slot />
   <div class="dim-overlay" class:active={$nightMode}></div>
+  <div class="blur-overlay" class:active={$blurMode}></div>
   <div class="refresh-pulse" class:active={refreshPulse}></div>
 </div>
 
@@ -57,8 +59,8 @@
     bottom: 0;
     background: linear-gradient(
       135deg,
-      rgba(0, 0, 0, 0.65) 0%,
-      rgba(5, 5, 20, 0.7) 100%
+      rgba(0, 0, 0, 0.85) 0%,
+      rgba(5, 5, 20, 0.9) 100%
     );
     pointer-events: none;
     opacity: 0;
@@ -68,6 +70,25 @@
   }
 
   .dim-overlay.active {
+    opacity: 1;
+  }
+
+  .blur-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 9998;
+    will-change: opacity;
+  }
+
+  .blur-overlay.active {
     opacity: 1;
   }
 

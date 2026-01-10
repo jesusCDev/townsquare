@@ -63,6 +63,7 @@
 
   // Settings
   let dimTimeout = 15;
+  let blurTimeout = 15;
   let nightModeStart = '20:00';
   let nightModeEnd = '06:00';
 
@@ -88,6 +89,7 @@
       const data = await response.json();
       if (data.settings) {
         dimTimeout = data.settings.dimTimeout || 15;
+        blurTimeout = data.settings.blurTimeout || 15;
         nightModeStart = data.settings['nightMode.start'] || '20:00';
         nightModeEnd = data.settings['nightMode.end'] || '06:00';
         showCountdownTile = data.settings['tiles.countdown'] !== false;
@@ -1667,6 +1669,24 @@
 
         <div class="setting-item">
           <div class="setting-info">
+            <label for="blurTimeout">Blur Mode Auto-Disable</label>
+            <p class="description">Minutes before blur mode automatically disables (press B to toggle)</p>
+          </div>
+          <div class="setting-control">
+            <input
+              id="blurTimeout"
+              type="number"
+              bind:value={blurTimeout}
+              min="1"
+              max="120"
+              on:change={() => saveSetting('blurTimeout', blurTimeout)}
+            />
+            <span class="unit">minutes</span>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
             <label for="nightStart">Night Mode Start</label>
             <p class="description">Time when dim mode automatically activates</p>
           </div>
@@ -1773,6 +1793,13 @@
               <div class="shortcut-description">
                 <strong>Toggle Dim Mode</strong>
                 <p>Press 'D' to temporarily disable or re-enable dim mode. Auto-dim schedule will still be respected - dim mode will automatically re-enable at the scheduled night mode start time.</p>
+              </div>
+            </div>
+            <div class="shortcut-item">
+              <div class="shortcut-key">B</div>
+              <div class="shortcut-description">
+                <strong>Toggle Blur Mode</strong>
+                <p>Press 'B' to blur the dashboard for privacy. Automatically disables after the configured timeout. Perfect for when showing your screen to others.</p>
               </div>
             </div>
           </div>

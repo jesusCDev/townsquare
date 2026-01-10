@@ -4,6 +4,7 @@
   import { isConnected } from '$lib/stores/socket';
   import { nightModeInfo, temporarilyDisableDim } from '$lib/stores/nightmode';
   import { timeFormat, formatTime } from '$lib/stores/timeFormat';
+  import { blurModeInfo } from '$lib/stores/blurmode';
 
   let currentTime = new Date();
   let interval: ReturnType<typeof setInterval>;
@@ -57,6 +58,9 @@
     return nextAlert;
   }
 
+  let blurUpdateInterval: ReturnType<typeof setInterval>;
+  let currentTimeForBlur = new Date();
+
   onMount(() => {
     loadHealth();
     loadAlerts();
@@ -80,6 +84,13 @@
         currentTime = new Date();
       }
     }, 60000);
+    
+    // Update for blur mode countdown
+    blurUpdateInterval = setInterval(() => {
+      if ($blurModeInfo.enabled) {
+        currentTimeForBlur = new Date();
+      }
+    }, 5000); // Update every 5 seconds for more accurate countdown
   });
 
   onDestroy(() => {
@@ -87,6 +98,7 @@
     if (healthInterval) clearInterval(healthInterval);
     if (timeInterval) clearInterval(timeInterval);
     if (alertsInterval) clearInterval(alertsInterval);
+    if (blurUpdateInterval) clearInterval(blurUpdateInterval);
   });
 
   function toggleDimMode() {
@@ -106,6 +118,9 @@
     ? Math.ceil(($nightModeInfo.disableUntil - currentTime.getTime()) / 1000 / 60)
     : 0;
   $: nextAlert = getNextAlert();
+  $: blurMinutesRemaining = $blurModeInfo.disableAt 
+    ? Math.max(0, Math.ceil(($blurModeInfo.disableAt - currentTimeForBlur.getTime()) / 1000 / 60))
+    : 0;
 </script>
 
 <div class="header glass">
@@ -143,7 +158,7 @@
   <!-- Center section: Clock -->
   <div class="center-section">
     <div class="date">{dateStr}</div>
-    <div class="time font-mono">{timeStr}</div>
+    <div class="time font-mono" class:dim-mode={$nightModeInfo.isActive}>{timeStr}</div>
     {#if nextAlert}
       <div class="next-alert">
         <span class="alert-icon">⏰</span>
@@ -157,6 +172,12 @@
 
   <!-- Right section: Settings -->
   <div class="right-section">
+    {#if $blurModeInfo.enabled}
+      <div class="blur-timer" title="Blur mode will auto-disable in {blurMinutesRemaining} minutes">
+        <span class="blur-icon">👁️</span>
+        <span class="blur-time">{blurMinutesRemaining}m</span>
+      </div>
+    {/if}
     <div class="version">v{health?.version || '1.0.0'}</div>
     <a href="/admin" class="settings-link">⚙️ Settings</a>
   </div>
@@ -293,6 +314,8 @@
     align-items: center;
     gap: 0.25rem;
     justify-self: center;
+    position: relative;
+    z-index: 10000; /* Above dim overlay */
   }
 
   .date {
@@ -301,6 +324,8 @@
     color: var(--text-tertiary);
     letter-spacing: 0.01em;
     white-space: nowrap;
+    position: relative;
+    z-index: 10000; /* Above dim overlay */
   }
 
   .time {
@@ -310,6 +335,15 @@
     letter-spacing: -0.02em;
     line-height: 1;
     text-shadow: 0 0 20px rgba(103, 254, 153, 0.3);
+    transition: font-size 0.4s ease;
+    position: relative;
+    z-index: 10000; /* Above dim overlay */
+  }
+
+  .time.dim-mode {
+    font-size: 12rem;
+    font-weight: 200;
+    text-shadow: 0 0 40px rgba(103, 254, 153, 0.5);
   }
 
   .next-alert {
@@ -345,5 +379,27 @@
 
   .settings-link:hover {
     opacity: 0.7;
+  }
+
+  .blur-timer {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: rgba(59, 130, 246, 1);
+  }
+
+  .blur-icon {
+    font-size: 0.85rem;
+  }
+
+  .blur-time {
+    font-size: 0.75rem;
+    font-weight: 700;
   }
 </style>

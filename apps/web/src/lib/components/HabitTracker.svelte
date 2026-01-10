@@ -169,7 +169,8 @@
     }
   }
 
-  function getIntensityClass(count: number, targetCount: number): string {
+  function getIntensityClass(count: number, targetCount: number, isRestDay: boolean = false): string {
+    if (isRestDay) return 'intensity-rest';
     if (count === 0) return 'intensity-0';
     if (count >= targetCount) return 'intensity-4'; // Max - fully complete
     
@@ -262,17 +263,54 @@
     draggedHabitId = null;
   }
 
+  function isRestDay(habitId: string, date: Date): boolean {
+    const entries = habitEntries[habitId] || [];
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const prevDate = subDays(date, 1);
+    const nextDate = subDays(date, -1);
+    
+    const prevDateStr = format(prevDate, 'yyyy-MM-dd');
+    const nextDateStr = format(nextDate, 'yyyy-MM-dd');
+    
+    // Check if current day has no entry
+    const hasCurrentEntry = entries.some(e => e.date === dateStr && e.count > 0);
+    if (hasCurrentEntry) return false;
+    
+    // Check if previous day has entry
+    const hasPrevEntry = entries.some(e => e.date === prevDateStr && e.count > 0);
+    if (!hasPrevEntry) return false;
+    
+    // Check if next day has entry
+    const hasNextEntry = entries.some(e => e.date === nextDateStr && e.count > 0);
+    return hasNextEntry;
+  }
+
   function calculateStreak(habitId: string): number {
     const entries = habitEntries[habitId] || [];
     let streak = 0;
     let currentDate = new Date();
+    let restDayUsed = false;
     
     while (true) {
       const dateStr = format(currentDate, 'yyyy-MM-dd');
       const hasEntry = entries.some(e => e.date === dateStr && e.count > 0);
-      if (!hasEntry) break;
-      streak++;
-      currentDate = subDays(currentDate, 1);
+      
+      if (hasEntry) {
+        streak++;
+        restDayUsed = false; // Reset rest day flag when we find an entry
+        currentDate = subDays(currentDate, 1);
+      } else {
+        // No entry - check if this can be a rest day
+        if (!restDayUsed && isRestDay(habitId, currentDate)) {
+          // This is a valid rest day
+          streak++;
+          restDayUsed = true;
+          currentDate = subDays(currentDate, 1);
+        } else {
+          // Either no rest day available or this isn't a valid rest day
+          break;
+        }
+      }
     }
     
     return streak;
@@ -295,6 +333,7 @@
       <span class="item"><span class="box intensity-0"></span>None</span>
       <span class="item"><span class="box intensity-2"></span>Med</span>
       <span class="item"><span class="box intensity-4"></span>Max</span>
+      <span class="item"><span class="box intensity-rest"></span>Rest</span>
     </div>
   </div>
 
@@ -338,11 +377,12 @@
               {@const entry = getEntryForDate(habit.id, day)}
               {@const count = entry?.count || 0}
               {@const isToday = isSameDay(day, today)}
+              {@const isRest = count === 0 && isRestDay(habit.id, day)}
               <button
-                class="day-cell {getIntensityClass(count, habit.targetCount)}"
+                class="day-cell {getIntensityClass(count, habit.targetCount, isRest)}"
                 class:today={isToday}
                 on:click={() => handleHabitClick(habit.id, day)}
-                title="{format(day, 'MMM d')}: {count}/{habit.targetCount} - Click to mark complete"
+                title="{format(day, 'MMM d')}: {isRest ? 'Rest day' : `${count}/${habit.targetCount}`} - Click to mark complete"
               ></button>
             {/each}
           </div>
@@ -406,6 +446,7 @@
   .intensity-2 { background: var(--habit-medium); }
   .intensity-3 { background: var(--habit-high); }
   .intensity-4 { background: var(--habit-max); }
+  .intensity-rest { background: var(--habit-rest); }
 
   .habits-container {
     flex: 1;
