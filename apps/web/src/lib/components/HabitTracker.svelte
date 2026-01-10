@@ -287,8 +287,13 @@
 
   function calculateStreak(habitId: string): number {
     const entries = habitEntries[habitId] || [];
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const hasTodayEntry = entries.some(e => e.date === todayStr && e.count > 0);
+    
     let streak = 0;
-    let currentDate = new Date();
+    // If today is complete, include it in the streak and start from today
+    // Otherwise, start from yesterday (today doesn't count yet)
+    let currentDate = hasTodayEntry ? new Date() : subDays(new Date(), 1);
     let restDayUsed = false;
     
     while (true) {
@@ -308,6 +313,7 @@
           currentDate = subDays(currentDate, 1);
         } else {
           // Either no rest day available or this isn't a valid rest day
+          // This breaks the streak
           break;
         }
       }
