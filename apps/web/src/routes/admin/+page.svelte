@@ -989,7 +989,7 @@
             <span class="drag-handle">⋮⋮</span>
             <span class="icon">{habit.icon || '●'}</span>
             <span class="name">{habit.name}</span>
-            <span class="badge" style="background: {habit.color};">
+            <span class="badge">
               Target: {habit.targetCount}x
             </span>
             <button class="edit-btn" on:click={() => startEditHabit(habit)}>
@@ -1020,26 +1020,13 @@
               />
             </div>
 
-            <div class="form-row">
-              <div class="form-group" style="flex: 2;">
-                <label>Icon</label>
-                <EmojiPicker
-                  bind:value={editingHabit.icon}
-                  placeholder="🏋️"
-                  maxLength={2}
-                />
-              </div>
-              <div class="form-group" style="flex: 1;">
-                <label>Visual Color</label>
-                <div class="color-picker-wrapper">
-                  <div class="color-preview" style="background-color: {editingHabit.color};"></div>
-                  <input
-                    type="color"
-                    bind:value={editingHabit.color}
-                    class="color-input"
-                  />
-                </div>
-              </div>
+            <div class="form-group">
+              <label>Icon</label>
+              <EmojiPicker
+                bind:value={editingHabit.icon}
+                placeholder="🏋️"
+                maxLength={2}
+              />
             </div>
 
             <div class="form-group">

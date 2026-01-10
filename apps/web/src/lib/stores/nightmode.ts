@@ -41,11 +41,22 @@ export function temporarilyDisableDim(minutes?: number) {
   if (disableTimer) clearTimeout(disableTimer);
   
   disableTimer = setTimeout(() => {
-    nightModeState.update(state => ({
-      ...state,
-      temporarilyDisabled: false,
-      disableUntil: null,
-    }));
+    // Only re-enable if serverEnabled is still true (meaning we're still in scheduled night hours)
+    const currentState = get(nightModeState);
+    if (currentState.serverEnabled) {
+      nightModeState.update(state => ({
+        ...state,
+        temporarilyDisabled: false,
+        disableUntil: null,
+      }));
+    } else {
+      // Night mode ended, just clear the temporary state
+      nightModeState.update(state => ({
+        ...state,
+        temporarilyDisabled: false,
+        disableUntil: null,
+      }));
+    }
   }, timeoutMinutes * 60 * 1000);
 }
 
