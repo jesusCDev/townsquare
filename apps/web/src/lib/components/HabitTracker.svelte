@@ -265,28 +265,33 @@
 
   // Helper to check if a day is a rest day during visual rendering
   // A rest day is the FIRST consecutive missing day after a completed day
-  // This looks ahead to see if tomorrow gets completed (for past days)
   function isRestDay(habitId: string, date: Date): boolean {
     const entries = habitEntries[habitId] || [];
     const dateStr = format(date, 'yyyy-MM-dd');
     const prevDate = subDays(date, 1);
-    const nextDate = subDays(date, -1); // Tomorrow
+    const prevPrevDate = subDays(date, 2);
     
     const prevDateStr = format(prevDate, 'yyyy-MM-dd');
-    const nextDateStr = format(nextDate, 'yyyy-MM-dd');
+    const prevPrevDateStr = format(prevPrevDate, 'yyyy-MM-dd');
     
     // Check if current day has no entry
     const hasCurrentEntry = entries.some(e => e.date === dateStr && e.count > 0);
     if (hasCurrentEntry) return false;
     
-    // Check if previous day has entry
+    // Must be the FIRST missing day after a completed day
+    // This means: previous day has entry OR previous day was also a rest day
     const hasPrevEntry = entries.some(e => e.date === prevDateStr && e.count > 0);
-    if (!hasPrevEntry) return false;
+    const hasPrevPrevEntry = entries.some(e => e.date === prevPrevDateStr && e.count > 0);
     
-    // For visual display, check if next day has entry (only works for past days)
-    // This helps show rest days retroactively
-    const hasNextEntry = entries.some(e => e.date === nextDateStr && e.count > 0);
-    return hasNextEntry;
+    // If previous day has entry, this is first miss = rest day
+    if (hasPrevEntry) return true;
+    
+    // If previous day was also missing but day before that had entry,
+    // then previous day was the rest day, so this is a skip
+    if (!hasPrevEntry && hasPrevPrevEntry) return false;
+    
+    // If both previous days were missing, this is definitely a skip
+    return false;
   }
 
   function calculateStreak(habitId: string): number {
