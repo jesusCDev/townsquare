@@ -239,13 +239,13 @@
   .main-counter {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.9rem;
   }
 
   .counter-ring {
     position: relative;
-    width: 60px;
-    height: 60px;
+    width: 70px;
+    height: 70px;
     flex-shrink: 0;
   }
 
@@ -272,7 +272,7 @@
 
   .counter-value {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     font-weight: 700;
     color: #67fe99;
     line-height: 1;
@@ -280,7 +280,7 @@
   }
 
   .counter-label {
-    font-size: 0.45rem;
+    font-size: 0.48rem;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.5);
     text-transform: uppercase;
@@ -296,7 +296,7 @@
 
   .rate-value {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 1.5rem;
+    font-size: 1.75rem;
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1;
@@ -307,7 +307,7 @@
   }
 
   .rate-label {
-    font-size: 0.6rem;
+    font-size: 0.62rem;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.4);
     text-transform: uppercase;
@@ -318,8 +318,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
-    padding: 0.5rem;
+    gap: 0.85rem;
+    padding: 0.6rem;
     background: rgba(255, 255, 255, 0.03);
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -334,18 +334,18 @@
   }
 
   .streak-icon {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
   }
 
   .streak-value {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     font-weight: 700;
     color: var(--text-primary);
   }
 
   .streak-label {
-    font-size: 0.6rem;
+    font-size: 0.62rem;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.4);
     text-transform: uppercase;
@@ -370,17 +370,17 @@
   .period-wins {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 0.4rem;
+    gap: 0.45rem;
   }
 
   .period-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0;
-    padding: 0.35rem 0.2rem;
+    gap: 0.1rem;
+    padding: 0.4rem 0.25rem;
     background: rgba(255, 255, 255, 0.02);
-    border-radius: 6px;
+    border-radius: 7px;
     border: 1px solid rgba(255, 255, 255, 0.04);
     transition: all 0.2s;
   }
@@ -392,13 +392,13 @@
 
   .period-value {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.9rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--text-primary);
   }
 
   .period-label {
-    font-size: 0.5rem;
+    font-size: 0.52rem;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.4);
     text-transform: uppercase;

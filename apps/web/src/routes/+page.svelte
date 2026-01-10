@@ -165,14 +165,14 @@
   <!-- Info Tiles Row -->
   {#if showCountdownTile || showDaysWonTile}
     <div class="tiles-row animate-in animate-in-4">
-      {#if showCountdownTile}
-        <div class="tile-half">
-          <CountdownTile />
-        </div>
-      {/if}
       {#if showDaysWonTile}
         <div class="tile-half">
           <DaysWonTile />
+        </div>
+      {/if}
+      {#if showCountdownTile}
+        <div class="tile-half">
+          <CountdownTile />
         </div>
       {/if}
     </div>
