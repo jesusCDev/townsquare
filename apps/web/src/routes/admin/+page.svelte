@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { timeFormat } from '$lib/stores/timeFormat';
+  import EmojiPicker from '$lib/components/EmojiPicker.svelte';
 
   let activeTab: 'habits' | 'schedule' | 'alerts' | 'countdowns' | 'settings' = 'habits';
 
@@ -957,11 +958,10 @@
             placeholder="Habit name (e.g., Workout)"
             required
           />
-          <input
-            type="text"
+          <EmojiPicker
             bind:value={newHabit.icon}
             placeholder="Icon (emoji)"
-            maxlength="2"
+            maxLength={2}
           />
           <input
             type="number"
@@ -1023,12 +1023,10 @@
             <div class="form-row">
               <div class="form-group" style="flex: 2;">
                 <label>Icon</label>
-                <input
-                  type="text"
+                <EmojiPicker
                   bind:value={editingHabit.icon}
                   placeholder="🏋️"
-                  maxlength="2"
-                  class="input-field"
+                  maxLength={2}
                 />
               </div>
               <div class="form-group" style="flex: 1;">
@@ -1112,11 +1110,10 @@
             placeholder="Block name (e.g., Work)"
             required
           />
-          <input
-            type="text"
+          <EmojiPicker
             bind:value={newBlock.icon}
             placeholder="Icon (emoji)"
-            maxlength="2"
+            maxLength={2}
           />
           <input
             type="color"
@@ -1538,11 +1535,10 @@
             placeholder="Label (e.g., License Renewal)"
             required
           />
-          <input
-            type="text"
+          <EmojiPicker
             bind:value={newCountdown.icon}
             placeholder="Icon (emoji)"
-            maxlength="4"
+            maxLength={4}
           />
           <input
             type="color"
@@ -1605,12 +1601,10 @@
             <div class="form-row">
               <div class="form-group">
                 <label>Icon</label>
-                <input
-                  type="text"
+                <EmojiPicker
                   bind:value={editingCountdown.icon}
                   placeholder="Emoji"
-                  maxlength="4"
-                  class="input-field"
+                  maxLength={4}
                 />
               </div>
               <div class="form-group">
