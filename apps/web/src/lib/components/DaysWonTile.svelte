@@ -175,8 +175,8 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.4rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 
@@ -233,19 +233,19 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
+    gap: 0.5rem;
   }
 
   .main-counter {
     display: flex;
     align-items: center;
-    gap: 0.9rem;
+    gap: 0.8rem;
   }
 
   .counter-ring {
     position: relative;
-    width: 70px;
-    height: 70px;
+    width: 65px;
+    height: 65px;
     flex-shrink: 0;
   }
 
@@ -272,7 +272,7 @@
 
   .counter-value {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 1.2rem;
+    font-size: 1.15rem;
     font-weight: 700;
     color: #67fe99;
     line-height: 1;
@@ -296,7 +296,7 @@
 
   .rate-value {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 1.75rem;
+    font-size: 1.65rem;
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1;
@@ -318,8 +318,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.85rem;
-    padding: 0.6rem;
+    gap: 0.75rem;
+    padding: 0.5rem;
     background: rgba(255, 255, 255, 0.03);
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -370,15 +370,15 @@
   .period-wins {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 0.45rem;
+    gap: 0.4rem;
   }
 
   .period-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.1rem;
-    padding: 0.4rem 0.25rem;
+    gap: 0.05rem;
+    padding: 0.35rem 0.2rem;
     background: rgba(255, 255, 255, 0.02);
     border-radius: 7px;
     border: 1px solid rgba(255, 255, 255, 0.04);
