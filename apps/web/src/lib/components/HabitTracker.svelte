@@ -3,6 +3,7 @@
   import { habits, loading, loadHabits, completeHabit } from '$lib/stores/habits';
   import { socket } from '$lib/stores/socket';
   import { subDays, format, isSameDay } from 'date-fns';
+  import { scrambleMode, scrambleText } from '$lib/stores/scramble';
 
   interface HabitEntry {
     id: string;
@@ -382,8 +383,8 @@
           class:overdue={overdue}
         >
           <div class="habit-name-col">
-            <span class="icon">{habit.icon || '▪'}</span>
-            <span class="name">{habit.name}</span>
+            <span class="icon">{$scrambleMode ? '▪' : (habit.icon || '▪')}</span>
+            <span class="name">{$scrambleMode ? scrambleText(habit.name) : habit.name}</span>
           </div>
           
           <div class="days-grid">

@@ -11,6 +11,7 @@
   import { habits } from '$lib/stores/habits';
   import { triggerDismissAlert } from '$lib/stores/alertActions';
   import { toggleBlurMode } from '$lib/stores/blurmode';
+  import { scrambleMode, toggleScramble } from '$lib/stores/scramble';
 
   // Tile visibility settings
   let showCountdownTile = true;
@@ -124,6 +125,14 @@
       event.preventDefault();
       toggleBlurMode();
       showNotification('Blur mode toggled');
+    }
+
+    // S key - Toggle scramble mode
+    if (event.key === 's' || event.key === 'S') {
+      event.preventDefault();
+      const wasEnabled = $scrambleMode;
+      toggleScramble();
+      showNotification(wasEnabled ? 'Scramble mode disabled' : 'Scramble mode enabled');
     }
   }
 

@@ -5,6 +5,7 @@
   import { nightModeInfo, temporarilyDisableDim } from '$lib/stores/nightmode';
   import { timeFormat, formatTime } from '$lib/stores/timeFormat';
   import { blurModeInfo } from '$lib/stores/blurmode';
+  import { scrambleMode, scrambleText } from '$lib/stores/scramble';
 
   let currentTime = new Date();
   let interval: ReturnType<typeof setInterval>;
@@ -162,7 +163,7 @@
     {#if nextAlert}
       <div class="next-alert">
         <span class="alert-icon">⏰</span>
-        {nextAlert.name} at {nextAlert.time}
+        {$scrambleMode ? scrambleText(nextAlert.name) : nextAlert.name} at {nextAlert.time}
         {#if nextAlert.minutesUntil <= 10}
           <span class="alert-soon">in {nextAlert.minutesUntil}m</span>
         {/if}

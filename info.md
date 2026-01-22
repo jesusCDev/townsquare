@@ -15,6 +15,8 @@ A self-hosted, real-time dashboard running on a Raspberry Pi 5 that serves as a 
 - **Whoop Integration** - Recovery, strain, and sleep metrics
 - **Reminder System** - Full-screen alerts for upcoming events
 - **Night Mode** - Automatic dimming between 8 PM - 6 AM
+- **Scramble Mode** - Privacy mode to hide sensitive data with gibberish (press S)
+- **Keyboard Shortcuts** - Quick actions (1-9 for habits, D for dim, S for scramble, Space to dismiss)
 - **Backup System** - API endpoint for Android app backups
 
 ---
@@ -245,8 +247,32 @@ interface ScheduleBlock {
 - **Effect**: Reduce overall brightness to ~30%
 - **Implementation**: CSS filter or overlay with opacity
 - **Transition**: Smooth fade over 30 seconds
+- **Scope**: Only activates on main dashboard (/) and mobile (/mobile) pages, not settings
+- **Clock Enhancement**: During dim mode, clock font becomes larger and slightly brighter for visibility
 
-### 4.7 Backup System
+### 4.7 Keyboard Shortcuts
+Available on main dashboard and mobile pages:
+
+| Key | Action |
+|-----|--------|
+| **1-9** | Toggle habit completion (by position) |
+| **Space** | Dismiss active alert |
+| **D** | Toggle dim/night mode |
+| **S** | Toggle scramble mode |
+
+### 4.8 Scramble Mode
+Privacy feature to hide sensitive data when screen-sharing or in public:
+- **Activation**: Press **S** key on main dashboard or mobile page
+- **Effect**: Replaces all text labels with block characters (█▓▒░▀▄▌▐■□▪▫●○◆◇★☆)
+- **Affected content**:
+  - Habit names and icons
+  - Schedule block names and icons
+  - Alert names
+  - Countdown labels
+- **Preserved content**: Times, dates, progress percentages, numeric stats
+- **Toggle**: Press **S** again to disable
+
+### 4.9 Backup System
 
 #### Endpoints
 ```

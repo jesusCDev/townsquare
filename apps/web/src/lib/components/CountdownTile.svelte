@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { differenceInDays, parseISO, isPast, isToday } from 'date-fns';
+  import { scrambleMode, scrambleText } from '$lib/stores/scramble';
 
   interface Countdown {
     id: string;
@@ -83,10 +84,10 @@
         </span>
       </div>
       <div class="countdown-label">
-        {#if primaryCountdown.icon}
+        {#if primaryCountdown.icon && !$scrambleMode}
           <span class="label-icon">{primaryCountdown.icon}</span>
         {/if}
-        <span class="label-text">{primaryCountdown.label}</span>
+        <span class="label-text">{$scrambleMode ? scrambleText(primaryCountdown.label) : primaryCountdown.label}</span>
       </div>
     </div>
 
@@ -96,7 +97,7 @@
           {@const d = getDaysRemaining(countdown.targetDate)}
           <div class="mini-countdown">
             <span class="mini-days">{Math.abs(d)}</span>
-            <span class="mini-label">{countdown.label}</span>
+            <span class="mini-label">{$scrambleMode ? scrambleText(countdown.label) : countdown.label}</span>
           </div>
         {/each}
       </div>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { dismissAlertSignal } from '$lib/stores/alertActions';
+  import { scrambleMode, scrambleText } from '$lib/stores/scramble';
 
   let alerts: any[] = [];
   let activeAlert: any | null = null;
@@ -119,7 +120,7 @@
   <div class="alert-overlay" class:dismissed>
     <div class="alert-card">
       <div class="alert-icon">⏰</div>
-      <h2 class="alert-title">{activeAlert.name}</h2>
+      <h2 class="alert-title">{$scrambleMode ? scrambleText(activeAlert.name) : activeAlert.name}</h2>
       <div class="alert-time">{activeAlert.time}</div>
       {#if activeAlert.minutesUntil > 0}
         <p class="alert-message">Starting in {activeAlert.minutesUntil} minute{activeAlert.minutesUntil !== 1 ? 's' : ''}</p>

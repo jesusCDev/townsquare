@@ -3,6 +3,7 @@
   import { habits, loading, loadHabits } from '$lib/stores/habits';
   import { socket } from '$lib/stores/socket';
   import { nightModeInfo, temporarilyDisableDim, manuallyEnableDim } from '$lib/stores/nightmode';
+  import { scrambleMode, scrambleText, toggleScramble } from '$lib/stores/scramble';
   import { format, isSameDay } from 'date-fns';
 
   interface HabitEntry {
@@ -60,6 +61,14 @@
         manuallyEnableDim();
         showNotification('Dim mode enabled');
       }
+    }
+
+    // S key - Toggle scramble mode
+    if (event.key === 's' || event.key === 'S') {
+      event.preventDefault();
+      const wasEnabled = $scrambleMode;
+      toggleScramble();
+      showNotification(wasEnabled ? 'Scramble mode disabled' : 'Scramble mode enabled');
     }
   }
 
@@ -329,9 +338,9 @@
           on:click={() => handleHabitClick(habit.id)}
         >
           <div class="habit-header">
-            <div class="habit-icon">{habit.icon || '▪'}</div>
+            <div class="habit-icon">{$scrambleMode ? '▪' : (habit.icon || '▪')}</div>
             <div class="habit-info">
-              <div class="habit-name">{habit.name}</div>
+              <div class="habit-name">{$scrambleMode ? scrambleText(habit.name) : habit.name}</div>
               <div class="habit-meta font-mono">
                 <span class="progress-text">{count}/{habit.targetCount}</span>
                 {#if streak > 0}
