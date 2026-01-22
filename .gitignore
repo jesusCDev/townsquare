@@ -45,3 +45,12 @@ Thumbs.db
 # Temporary
 tmp
 temp
+
+# Vite temp files
+*.timestamp-*
+
+# Pi-specific scripts
+open.sh
+
+# Service file (use .example as template)
+townsquare.service

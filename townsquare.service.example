@@ -1,0 +1,26 @@
+[Unit]
+Description=TownSquare/LifeBoard Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/path/to/townsquare
+ExecStartPre=/bin/bash -c 'lsof -ti:5173 2>/dev/null | xargs kill -9 2>/dev/null || true; lsof -ti:3000 2>/dev/null | xargs kill -9 2>/dev/null || true; sleep 1'
+ExecStart=/path/to/pnpm dev
+ExecStop=/bin/bash -c 'lsof -ti:5173 2>/dev/null | xargs kill -9 2>/dev/null || true; lsof -ti:3000 2>/dev/null | xargs kill -9 2>/dev/null || true'
+Restart=on-failure
+RestartSec=10
+Environment=NODE_ENV=development
+Environment=PATH=/path/to/node/bin:/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=multi-user.target
+
+# Installation:
+# 1. Copy this file: sudo cp townsquare.service.example /etc/systemd/system/townsquare.service
+# 2. Edit the paths: sudo nano /etc/systemd/system/townsquare.service
+# 3. Reload systemd: sudo systemctl daemon-reload
+# 4. Enable service: sudo systemctl enable townsquare
+# 5. Start service: sudo systemctl start townsquare
+# 6. Check status: sudo systemctl status townsquare
