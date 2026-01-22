@@ -7,16 +7,70 @@ interface NightModeState {
   disableUntil: number | null;
 }
 
-const nightModeState = writable<NightModeState>({
-  serverEnabled: false,
-  temporarilyDisabled: false,
-  disableUntil: null,
-});
+// Initialize from localStorage if available
+const getInitialState = (): NightModeState => {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('nightModeState');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        // Check if disableUntil has expired
+        if (parsed.disableUntil && Date.now() > parsed.disableUntil) {
+          return {
+            serverEnabled: parsed.serverEnabled || false,
+            temporarilyDisabled: false,
+            disableUntil: null,
+          };
+        }
+        return parsed;
+      } catch {
+        // Ignore parse errors
+      }
+    }
+  }
+  return {
+    serverEnabled: false,
+    temporarilyDisabled: false,
+    disableUntil: null,
+  };
+};
+
+const nightModeState = writable<NightModeState>(
+  typeof window !== 'undefined' ? getInitialState() : {
+    serverEnabled: false,
+    temporarilyDisabled: false,
+    disableUntil: null,
+  }
+);
 
 export const dimTimeout = writable(15); // Default 15 minutes
-export const nightMode = derived(nightModeState, ($state) => 
+export const nightMode = derived(nightModeState, ($state) =>
   $state.serverEnabled && !$state.temporarilyDisabled
 );
+
+// Sync to localStorage and listen for changes from other tabs
+if (typeof window !== 'undefined') {
+  // Save to localStorage whenever state changes
+  nightModeState.subscribe(state => {
+    localStorage.setItem('nightModeState', JSON.stringify(state));
+  });
+
+  // Listen for changes from other tabs/pages
+  window.addEventListener('storage', (event) => {
+    if (event.key === 'nightModeState' && event.newValue) {
+      try {
+        const newState = JSON.parse(event.newValue);
+        const currentState = get(nightModeState);
+        // Only update if different to avoid loops
+        if (JSON.stringify(currentState) !== event.newValue) {
+          nightModeState.set(newState);
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    }
+  });
+}
 
 export const nightModeInfo = derived(nightModeState, ($state) => ({
   isActive: $state.serverEnabled && !$state.temporarilyDisabled,
@@ -101,8 +155,9 @@ if (typeof window !== 'undefined') {
   let hasInteracted = false;
   
   const handleInteraction = (event?: Event) => {
-    // Ignore D key - it's handled by the keyboard shortcut
-    if (event instanceof KeyboardEvent && (event.key === 'd' || event.key === 'D')) {
+    // Ignore D and S keys - they're handled by keyboard shortcuts
+    if (event instanceof KeyboardEvent &&
+        (event.key === 'd' || event.key === 'D' || event.key === 's' || event.key === 'S')) {
       return;
     }
     

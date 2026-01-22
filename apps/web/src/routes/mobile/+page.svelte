@@ -17,6 +17,7 @@
   let habitEntries: Record<string, HabitEntry[]> = {};
   let entriesLoaded = false;
   let currentTime = new Date();
+  let currentDateStr = format(new Date(), 'yyyy-MM-dd');
   let timeInterval: ReturnType<typeof setInterval>;
   let processingHabits = new Set<string>();
   let socketUnsubscribe: (() => void) | null = null;
@@ -94,9 +95,32 @@
     // Always mark entries as loaded, even if no habits exist
     entriesLoaded = true;
 
-    // Update current time every minute
-    timeInterval = setInterval(() => {
+    // Update current time every minute and check for day changes
+    timeInterval = setInterval(async () => {
       currentTime = new Date();
+      const newDateStr = format(currentTime, 'yyyy-MM-dd');
+
+      // If the day has changed, reload all entries
+      if (newDateStr !== currentDateStr) {
+        console.log('Day changed from', currentDateStr, 'to', newDateStr, '- reloading entries');
+        currentDateStr = newDateStr;
+
+        // Reload entries for all habits
+        const currentHabits = $habits;
+        if (currentHabits.length > 0) {
+          const entryPromises = currentHabits.map(async habit => {
+            const entries = await loadEntriesForHabit(habit.id);
+            return { habitId: habit.id, entries };
+          });
+          const results = await Promise.all(entryPromises);
+
+          const newEntries: Record<string, HabitEntry[]> = {};
+          results.forEach(({ habitId, entries }) => {
+            newEntries[habitId] = entries;
+          });
+          habitEntries = newEntries;
+        }
+      }
     }, 60000);
 
     // Add keyboard listener for dim mode toggle
@@ -359,6 +383,26 @@
     {/if}
   </div>
 
+  <!-- Mode Controls -->
+  <div class="mode-controls">
+    <button
+      class="mode-btn"
+      class:active={$nightModeInfo.isActive}
+      on:click={() => {
+        if ($nightModeInfo.isActive) {
+          temporarilyDisableDim();
+          showNotification('Dim mode disabled');
+        } else {
+          manuallyEnableDim();
+          showNotification('Dim mode enabled');
+        }
+      }}
+    >
+      <span class="mode-icon">🌙</span>
+      <span class="mode-label">Dim</span>
+    </button>
+  </div>
+
   <!-- Toast Notification -->
   {#if showToast}
     <div class="toast" class:show={showToast}>
@@ -565,6 +609,54 @@
       padding-left: max(1rem, env(safe-area-inset-left));
       padding-right: max(1rem, env(safe-area-inset-right));
     }
+  }
+
+  /* Mode controls */
+  .mode-controls {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(18, 18, 18, 0.95);
+    border-radius: 16px;
+    border: 1px solid var(--glass-border);
+  }
+
+  .mode-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mode-btn:active {
+    transform: scale(0.98);
+  }
+
+  .mode-btn.active {
+    background: rgba(103, 254, 153, 0.15);
+    border-color: rgba(103, 254, 153, 0.4);
+    color: var(--accent-primary);
+  }
+
+  .mode-icon {
+    font-size: 1.1rem;
+  }
+
+  .mode-label {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 
   /* Toast notification */

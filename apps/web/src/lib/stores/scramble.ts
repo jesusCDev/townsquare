@@ -1,7 +1,34 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
+
+// Initialize from localStorage if available
+const getInitialScrambleMode = (): boolean => {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('scrambleMode');
+    return stored === 'true';
+  }
+  return false;
+};
 
 // Scramble mode state
-export const scrambleMode = writable(false);
+export const scrambleMode = writable(typeof window !== 'undefined' ? getInitialScrambleMode() : false);
+
+// Sync to localStorage and listen for changes from other tabs
+if (typeof window !== 'undefined') {
+  // Save to localStorage whenever state changes
+  scrambleMode.subscribe(value => {
+    localStorage.setItem('scrambleMode', String(value));
+  });
+
+  // Listen for changes from other tabs/pages
+  window.addEventListener('storage', (event) => {
+    if (event.key === 'scrambleMode') {
+      const newValue = event.newValue === 'true';
+      if (get(scrambleMode) !== newValue) {
+        scrambleMode.set(newValue);
+      }
+    }
+  });
+}
 
 // Characters to use for scrambling
 const scrambleChars = '█▓▒░▀▄▌▐■□▪▫●○◆◇★☆';
