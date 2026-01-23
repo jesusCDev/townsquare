@@ -39,10 +39,17 @@ All notable changes to LifeBoard will be documented in this file.
   - Day/preset buttons now show selected state correctly (forced reactivity)
   - Item cards with hover states
   - Edit buttons added to all schedule blocks
-- **Night Mode**:
+- **Night Mode / Dim Mode**:
   - Manual enable/disable function added
   - Improved keyboard shortcut integration
   - Better interaction handling (D key ignored by auto-disable)
+  - Separated manual dim from scheduled night mode (new `manuallyEnabled` state)
+  - Timeout only triggers during scheduled night hours, not manual dim
+  - Auto-disable on interaction only during scheduled hours
+- **Mobile View**:
+  - Improved habit click reactivity with immediate visual feedback
+  - Disabled habit re-sorting when items are checked (prevents mis-clicks)
+  - Dim toggle now works correctly with stopPropagation
 
 ### Fixed
 - Alert dismissal persistence (now uses localStorage to track dismissed alerts per day)
@@ -54,7 +61,10 @@ All notable changes to LifeBoard will be documented in this file.
 - Time label positioning in active block
 
 ### Technical
+- Night mode state now has `manuallyEnabled` separate from `serverEnabled`
 - Added `manuallyEnableDim()` function to nightmode store
+- `temporarilyDisableDim()` handles manual vs scheduled mode differently
+- Mobile habit entries use immutable updates for proper Svelte reactivity
 - Created `/api/backup/export` and `/api/backup/import` endpoints
 - Created `/api/alerts` endpoints (GET, POST, DELETE)
 - Added PATCH endpoint for schedule blocks (`/api/schedule/:id`)
