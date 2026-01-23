@@ -3,6 +3,7 @@ import { socket } from './socket';
 
 interface NightModeState {
   serverEnabled: boolean;
+  manuallyEnabled: boolean;
   temporarilyDisabled: boolean;
   disableUntil: number | null;
 }
@@ -18,11 +19,17 @@ const getInitialState = (): NightModeState => {
         if (parsed.disableUntil && Date.now() > parsed.disableUntil) {
           return {
             serverEnabled: parsed.serverEnabled || false,
+            manuallyEnabled: parsed.manuallyEnabled || false,
             temporarilyDisabled: false,
             disableUntil: null,
           };
         }
-        return parsed;
+        return {
+          serverEnabled: parsed.serverEnabled || false,
+          manuallyEnabled: parsed.manuallyEnabled || false,
+          temporarilyDisabled: parsed.temporarilyDisabled || false,
+          disableUntil: parsed.disableUntil || null,
+        };
       } catch {
         // Ignore parse errors
       }
@@ -30,6 +37,7 @@ const getInitialState = (): NightModeState => {
   }
   return {
     serverEnabled: false,
+    manuallyEnabled: false,
     temporarilyDisabled: false,
     disableUntil: null,
   };
@@ -38,6 +46,7 @@ const getInitialState = (): NightModeState => {
 const nightModeState = writable<NightModeState>(
   typeof window !== 'undefined' ? getInitialState() : {
     serverEnabled: false,
+    manuallyEnabled: false,
     temporarilyDisabled: false,
     disableUntil: null,
   }
@@ -45,7 +54,7 @@ const nightModeState = writable<NightModeState>(
 
 export const dimTimeout = writable(15); // Default 15 minutes
 export const nightMode = derived(nightModeState, ($state) =>
-  $state.serverEnabled && !$state.temporarilyDisabled
+  ($state.serverEnabled || $state.manuallyEnabled) && !$state.temporarilyDisabled
 );
 
 // Sync to localStorage and listen for changes from other tabs
@@ -73,8 +82,9 @@ if (typeof window !== 'undefined') {
 }
 
 export const nightModeInfo = derived(nightModeState, ($state) => ({
-  isActive: $state.serverEnabled && !$state.temporarilyDisabled,
+  isActive: ($state.serverEnabled || $state.manuallyEnabled) && !$state.temporarilyDisabled,
   isScheduled: $state.serverEnabled,
+  isManuallyEnabled: $state.manuallyEnabled,
   isTemporarilyDisabled: $state.temporarilyDisabled,
   disableUntil: $state.disableUntil,
 }));
@@ -82,31 +92,50 @@ export const nightModeInfo = derived(nightModeState, ($state) => ({
 let disableTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function temporarilyDisableDim(minutes?: number) {
+  const currentState = get(nightModeState);
+
+  // If only manually enabled (not in scheduled night mode hours), just disable without timeout
+  if (!currentState.serverEnabled && currentState.manuallyEnabled) {
+    nightModeState.update(state => ({
+      ...state,
+      manuallyEnabled: false,
+      temporarilyDisabled: false,
+      disableUntil: null,
+    }));
+
+    if (disableTimer) {
+      clearTimeout(disableTimer);
+      disableTimer = null;
+    }
+    return;
+  }
+
+  // In scheduled night mode - use timeout behavior
   const timeout = get(dimTimeout);
   const timeoutMinutes = minutes ?? timeout;
   const disableUntil = Date.now() + timeoutMinutes * 60 * 1000;
-  
+
   nightModeState.update(state => ({
     ...state,
     temporarilyDisabled: true,
     disableUntil,
   }));
-  
+
   if (disableTimer) clearTimeout(disableTimer);
-  
+
   disableTimer = setTimeout(() => {
     // Only re-enable if serverEnabled is still true (meaning we're still in scheduled night hours)
-    const currentState = get(nightModeState);
-    if (currentState.serverEnabled) {
-      nightModeState.update(state => ({
-        ...state,
+    const state = get(nightModeState);
+    if (state.serverEnabled) {
+      nightModeState.update(s => ({
+        ...s,
         temporarilyDisabled: false,
         disableUntil: null,
       }));
     } else {
       // Night mode ended, just clear the temporary state
-      nightModeState.update(state => ({
-        ...state,
+      nightModeState.update(s => ({
+        ...s,
         temporarilyDisabled: false,
         disableUntil: null,
       }));
@@ -115,14 +144,14 @@ export function temporarilyDisableDim(minutes?: number) {
 }
 
 export function manuallyEnableDim() {
-  // Enable dim mode by setting serverEnabled to true
+  // Enable dim mode by setting manuallyEnabled to true (not serverEnabled)
   nightModeState.update(state => ({
     ...state,
-    serverEnabled: true,
+    manuallyEnabled: true,
     temporarilyDisabled: false,
     disableUntil: null,
   }));
-  
+
   // Clear any existing timer
   if (disableTimer) {
     clearTimeout(disableTimer);
@@ -171,7 +200,9 @@ if (typeof window !== 'undefined') {
     interactionTimer = setTimeout(() => {
       hasInteracted = false;
       const state = get(nightModeState);
-      
+
+      // Only auto-disable on interaction during SCHEDULED night mode (not manual)
+      // Manual dim should only be controlled by explicit user action
       if (state.serverEnabled && !state.temporarilyDisabled) {
         temporarilyDisableDim();
       }

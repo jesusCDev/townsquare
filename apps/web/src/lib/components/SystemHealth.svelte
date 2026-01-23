@@ -65,13 +65,13 @@
         <div class="metric">Uptime: {Math.floor(health.uptime / 3600)}h</div>
       {/if}
       
-      {#if $nightModeInfo.isScheduled}
-        <button 
-          class="dim-toggle" 
+      {#if $nightModeInfo.isScheduled || $nightModeInfo.isManuallyEnabled}
+        <button
+          class="dim-toggle"
           class:active={$nightModeInfo.isActive}
           class:disabled={$nightModeInfo.isTemporarilyDisabled}
           on:click={toggleDimMode}
-          title={$nightModeInfo.isTemporarilyDisabled ? 'Enable dim mode' : 'Disable dim mode temporarily'}
+          title={$nightModeInfo.isTemporarilyDisabled ? 'Enable dim mode' : 'Disable dim mode'}
         >
           <span class="moon-icon">🌙</span>
           {#if $nightModeInfo.isTemporarilyDisabled}

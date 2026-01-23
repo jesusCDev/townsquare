@@ -23,6 +23,7 @@
   let socketUnsubscribe: (() => void) | null = null;
   let toastMessage = '';
   let showToast = false;
+  let sortedHabitIds: string[] = []; // Fixed order to prevent re-sorting on check
 
   function showNotification(message: string) {
     toastMessage = message;
@@ -95,6 +96,9 @@
     // Always mark entries as loaded, even if no habits exist
     entriesLoaded = true;
 
+    // Compute initial sort order (won't change when habits are checked)
+    computeSortedOrder();
+
     // Update current time every minute and check for day changes
     timeInterval = setInterval(async () => {
       currentTime = new Date();
@@ -119,6 +123,9 @@
             newEntries[habitId] = entries;
           });
           habitEntries = newEntries;
+
+          // Re-sort on day change
+          computeSortedOrder();
         }
       }
     }, 60000);
@@ -193,26 +200,31 @@
     const currentCount = existingEntry?.count || 0;
     const isResetting = currentCount >= habit.targetCount;
     
-    // Optimistic update
+    // Optimistic update - create new arrays/objects for Svelte reactivity
+    const currentEntries = habitEntries[habitId] || [];
+    let newEntries: HabitEntry[];
+
     if (isResetting) {
-      // Reset to 0
-      habitEntries[habitId] = habitEntries[habitId]?.filter(e => e.date !== dateStr) || [];
+      // Reset to 0 - filter out the entry
+      newEntries = currentEntries.filter(e => e.date !== dateStr);
+    } else if (existingEntry) {
+      // Increment count - create new entry object
+      newEntries = currentEntries.map(e =>
+        e.date === dateStr ? { ...e, count: currentCount + 1 } : e
+      );
     } else {
-      // Increment count
-      if (existingEntry) {
-        existingEntry.count = currentCount + 1;
-      } else {
-        if (!habitEntries[habitId]) habitEntries[habitId] = [];
-        habitEntries[habitId].push({
-          id: 'temp-' + Date.now(),
-          habitId,
-          date: dateStr,
-          count: 1,
-          completedAt: new Date().toISOString()
-        });
-      }
+      // Add new entry
+      newEntries = [...currentEntries, {
+        id: 'temp-' + Date.now(),
+        habitId,
+        date: dateStr,
+        count: 1,
+        completedAt: new Date().toISOString()
+      }];
     }
-    habitEntries = { ...habitEntries };
+
+    // Create entirely new object to trigger reactivity
+    habitEntries = { ...habitEntries, [habitId]: newEntries };
     
     // Sync with backend
     try {
@@ -297,29 +309,38 @@
   function isComplete(habitId: string): boolean {
     const habit = $habits.find(h => h.id === habitId);
     if (!habit) return false;
-    
+
     const entry = getTodayEntry(habitId);
     const count = entry?.count || 0;
     return count >= habit.targetCount;
   }
 
-  // Reactive sorted habits - depends on both habits and habitEntries
-  $: sortedHabits = (() => {
-    // Reference habitEntries to trigger reactivity
-    const _ = habitEntries;
-    return [...$habits].sort((a, b) => {
+  // Compute sorted order - only called on initial load and explicit refresh
+  function computeSortedOrder() {
+    const sorted = [...$habits].sort((a, b) => {
       const aComplete = isComplete(a.id);
       const bComplete = isComplete(b.id);
       const aProgress = getProgressPercentage(a.id);
       const bProgress = getProgressPercentage(b.id);
-      
+
       // Full complete goes to bottom
       if (aComplete && !bComplete) return 1;
       if (!aComplete && bComplete) return -1;
-      
+
       // Both incomplete or both complete: sort by progress (higher first)
       return bProgress - aProgress;
     });
+    sortedHabitIds = sorted.map(h => h.id);
+  }
+
+  // Get habits in the fixed sorted order
+  // Reference habitEntries for reactivity (UI updates when entries change)
+  // but don't use it for sorting (order stays fixed)
+  $: sortedHabits = (() => {
+    const _ = habitEntries; // Trigger reactivity on entry changes
+    return sortedHabitIds
+      .map(id => $habits.find(h => h.id === id))
+      .filter((h): h is NonNullable<typeof h> => h !== undefined);
   })();
 </script>
 
@@ -357,8 +378,6 @@
         <button
           class="habit-card glass"
           class:complete={complete}
-          class:processing={processingHabits.has(habit.id)}
-          disabled={processingHabits.has(habit.id)}
           on:click={() => handleHabitClick(habit.id)}
         >
           <div class="habit-header">
@@ -388,7 +407,8 @@
     <button
       class="mode-btn"
       class:active={$nightModeInfo.isActive}
-      on:click={() => {
+      on:click={(e) => {
+        e.stopPropagation();
         if ($nightModeInfo.isActive) {
           temporarilyDisableDim();
           showNotification('Dim mode disabled');
@@ -494,15 +514,6 @@
   .habit-card:active {
     transform: scale(0.98);
     background: var(--surface-hover);
-  }
-
-  .habit-card.processing {
-    opacity: 0.6;
-    pointer-events: none;
-  }
-
-  .habit-card:disabled {
-    cursor: not-allowed;
   }
 
   .habit-card.complete {
