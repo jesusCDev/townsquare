@@ -97,15 +97,11 @@
     opacity: 1;
   }
 
-  /* Dim mode clock enhancement - make it bigger and lighter */
+  /* Dim mode clock enhancement - improve visibility (size controlled by Header component) */
   .app-container.dim-active :global(.time) {
-    font-size: clamp(4rem, 8vw, 6rem) !important;
-    color: rgba(103, 254, 153, 0.95) !important;
-    text-shadow: 0 0 30px rgba(103, 254, 153, 0.5) !important;
-  }
-
-  .app-container.dim-active :global(.center-section .time) {
-    font-size: clamp(3.5rem, 7vw, 5rem) !important;
+    color: rgba(103, 254, 153, 1) !important;
+    text-shadow: 0 0 60px rgba(103, 254, 153, 0.8),
+                 0 0 120px rgba(103, 254, 153, 0.5) !important;
   }
 
   /* Subtle refresh pulse - nearly invisible but forces TV pixel refresh */

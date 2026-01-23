@@ -342,9 +342,11 @@
   }
 
   .time.dim-mode {
-    font-size: 12rem;
+    font-size: 24rem;
     font-weight: 200;
-    text-shadow: 0 0 40px rgba(103, 254, 153, 0.5);
+    color: rgba(103, 254, 153, 1);
+    text-shadow: 0 0 60px rgba(103, 254, 153, 0.8),
+                 0 0 120px rgba(103, 254, 153, 0.4);
   }
 
   .next-alert {
