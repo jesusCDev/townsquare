@@ -19,6 +19,8 @@
   let draggedHabitId: string | null = null;
   let currentTime = new Date();
   let timeInterval: ReturnType<typeof setInterval>;
+  let celebratingCells = new Set<string>(); // Track cells that are celebrating (habitId-dateStr)
+  let celebratingButtons = new Set<string>(); // Track complete buttons that are celebrating (habitId)
 
   let socketUnsubscribe: (() => void) | null = null;
 
@@ -115,6 +117,7 @@
 
     // If already at max, reset to 0 (one more click cycles back)
     const newCount = currentCount >= habit.targetCount ? 0 : currentCount + 1;
+    const willBeComplete = newCount >= habit.targetCount;
 
     // Update local state immediately for instant feedback
     if (newCount === 0) {
@@ -135,6 +138,27 @@
       });
     }
     habitEntries = { ...habitEntries }; // Trigger reactivity immediately
+
+    // Trigger celebration animation if habit reached completion
+    if (willBeComplete && currentCount < habit.targetCount) {
+      const cellKey = `${habitId}-${dateStr}`;
+      celebratingCells.add(cellKey);
+      celebratingCells = celebratingCells;
+      setTimeout(() => {
+        celebratingCells.delete(cellKey);
+        celebratingCells = celebratingCells;
+      }, 500);
+
+      // Also trigger complete button celebration if clicking today
+      if (!date || isSameDay(targetDate, new Date())) {
+        celebratingButtons.add(habitId);
+        celebratingButtons = celebratingButtons;
+        setTimeout(() => {
+          celebratingButtons.delete(habitId);
+          celebratingButtons = celebratingButtons;
+        }, 500);
+      }
+    }
 
     // Then sync with backend
     try {
@@ -393,9 +417,11 @@
               {@const count = entry?.count || 0}
               {@const isToday = isSameDay(day, today)}
               {@const isRest = count === 0 && isRestDay(habit.id, day)}
+              {@const cellKey = `${habit.id}-${format(day, 'yyyy-MM-dd')}`}
               <button
                 class="day-cell {getIntensityClass(count, habit.targetCount, isRest)}"
                 class:today={isToday}
+                class:celebrating={celebratingCells.has(cellKey)}
                 on:click={() => handleHabitClick(habit.id, day)}
                 title="{format(day, 'MMM d')}: {isRest ? 'Rest day' : `${count}/${habit.targetCount}`} - Click to mark complete"
               ></button>
@@ -404,7 +430,11 @@
 
           <div class="stats-col font-mono">
             <span class="streak">{#if streak > 0}{streak}d{/if}</span>
-            <button class="complete-btn" on:click={() => handleHabitClick(habit.id)}>✓</button>
+            <button
+              class="complete-btn"
+              class:celebrating={celebratingButtons.has(habit.id)}
+              on:click={() => handleHabitClick(habit.id)}
+            >✓</button>
           </div>
         </div>
       {/each}
@@ -622,10 +652,57 @@
     background: rgba(103, 254, 153, 0.35);
   }
 
+  .complete-btn.celebrating {
+    animation: btnCelebrate 0.5s ease-out;
+  }
+
+  @keyframes btnCelebrate {
+    0% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(103, 254, 153, 0.6);
+    }
+    30% {
+      transform: scale(1.15);
+      box-shadow: 0 0 0 8px rgba(103, 254, 153, 0.3);
+    }
+    60% {
+      transform: scale(1.05);
+      box-shadow: 0 0 0 12px rgba(103, 254, 153, 0.1);
+    }
+    100% {
+      transform: scale(1);
+      box-shadow: none;
+    }
+  }
+
   .loading, .empty {
     text-align: center;
     padding: 3rem;
     color: var(--text-tertiary);
     font-size: 0.9rem;
+  }
+
+  /* Celebration animation when cell reaches completion */
+  .day-cell.celebrating {
+    animation: cellCelebrate 0.5s ease-out;
+  }
+
+  @keyframes cellCelebrate {
+    0% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(103, 254, 153, 0.6);
+    }
+    30% {
+      transform: scale(1.4);
+      box-shadow: 0 0 0 6px rgba(103, 254, 153, 0.3);
+    }
+    60% {
+      transform: scale(1.2);
+      box-shadow: 0 0 0 10px rgba(103, 254, 153, 0.1);
+    }
+    100% {
+      transform: scale(1.15);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
   }
 </style>

@@ -20,17 +20,21 @@
   let currentDateStr = format(new Date(), 'yyyy-MM-dd');
   let timeInterval: ReturnType<typeof setInterval>;
   let processingHabits = new Set<string>();
+  let cooldownHabits = new Set<string>();
+  let celebratingHabits = new Set<string>();
   let socketUnsubscribe: (() => void) | null = null;
   let toastMessage = '';
+  let toastType: 'success' | 'error' = 'success';
   let showToast = false;
   let sortedHabitIds: string[] = []; // Fixed order to prevent re-sorting on check
 
-  function showNotification(message: string) {
+  function showNotification(message: string, type: 'success' | 'error' = 'success') {
     toastMessage = message;
+    toastType = type;
     showToast = true;
     setTimeout(() => {
       showToast = false;
-    }, 2000);
+    }, type === 'error' ? 3000 : 2000);
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -180,26 +184,28 @@
   }
 
   async function handleHabitClick(habitId: string) {
-    // Prevent double-clicks and clicks during processing
-    if (processingHabits.has(habitId)) return;
-    
+    // Prevent double-clicks, clicks during processing, and clicks during cooldown
+    if (processingHabits.has(habitId) || cooldownHabits.has(habitId)) return;
+
     processingHabits.add(habitId);
     processingHabits = processingHabits; // trigger reactivity
-    
+
     const targetDate = new Date();
     const dateStr = format(targetDate, 'yyyy-MM-dd');
-    
+
     const habit = $habits.find(h => h.id === habitId);
     if (!habit) {
       processingHabits.delete(habitId);
       processingHabits = processingHabits;
       return;
     }
-    
+
     const existingEntry = habitEntries[habitId]?.find(e => e.date === dateStr);
     const currentCount = existingEntry?.count || 0;
     const isResetting = currentCount >= habit.targetCount;
-    
+    const newCount = isResetting ? 0 : currentCount + 1;
+    const willBeComplete = newCount >= habit.targetCount;
+
     // Optimistic update - create new arrays/objects for Svelte reactivity
     const currentEntries = habitEntries[habitId] || [];
     let newEntries: HabitEntry[];
@@ -225,7 +231,17 @@
 
     // Create entirely new object to trigger reactivity
     habitEntries = { ...habitEntries, [habitId]: newEntries };
-    
+
+    // Trigger celebration animation if habit is now complete
+    if (willBeComplete && !isResetting) {
+      celebratingHabits.add(habitId);
+      celebratingHabits = celebratingHabits;
+      setTimeout(() => {
+        celebratingHabits.delete(habitId);
+        celebratingHabits = celebratingHabits;
+      }, 600);
+    }
+
     // Sync with backend
     try {
       if (isResetting) {
@@ -234,11 +250,12 @@
         const response = await fetch(`/api/habits/${habitId}/entries/${dateStr}`, {
           method: 'DELETE'
         });
-        
+
         if (!response.ok) {
           // Revert on error
           const entries = await loadEntriesForHabit(habitId);
           habitEntries = { ...habitEntries, [habitId]: entries };
+          showNotification('Failed to reset habit. Please try again.', 'error');
         } else {
           console.log('📤 Mobile: Delete successful, server emitting socket event');
         }
@@ -250,11 +267,12 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ date: dateStr }),
         });
-        
+
         if (!response.ok) {
           // Revert on error
           const entries = await loadEntriesForHabit(habitId);
           habitEntries = { ...habitEntries, [habitId]: entries };
+          showNotification('Failed to save. Please try again.', 'error');
         } else {
           console.log('📤 Mobile: Completion successful, server emitting socket event');
         }
@@ -264,9 +282,18 @@
       // Revert on error
       const entries = await loadEntriesForHabit(habitId);
       habitEntries = { ...habitEntries, [habitId]: entries };
+      showNotification('Connection error. Please try again.', 'error');
     } finally {
       processingHabits.delete(habitId);
       processingHabits = processingHabits;
+
+      // Add brief cooldown to prevent accidental double-taps (300ms)
+      cooldownHabits.add(habitId);
+      cooldownHabits = cooldownHabits;
+      setTimeout(() => {
+        cooldownHabits.delete(habitId);
+        cooldownHabits = cooldownHabits;
+      }, 300);
     }
   }
 
@@ -378,6 +405,9 @@
         <button
           class="habit-card glass"
           class:complete={complete}
+          class:processing={processingHabits.has(habit.id)}
+          class:celebrating={celebratingHabits.has(habit.id)}
+          disabled={processingHabits.has(habit.id) || cooldownHabits.has(habit.id)}
           on:click={() => handleHabitClick(habit.id)}
         >
           <div class="habit-header">
@@ -425,7 +455,7 @@
 
   <!-- Toast Notification -->
   {#if showToast}
-    <div class="toast" class:show={showToast}>
+    <div class="toast" class:show={showToast} class:error={toastType === 'error'}>
       {toastMessage}
     </div>
   {/if}
@@ -695,6 +725,57 @@
     }
     to {
       transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  /* Error toast styling */
+  .toast.error {
+    color: #ff6b6b;
+    border-color: #ff6b6b;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6),
+                0 0 20px rgba(255, 107, 107, 0.3);
+  }
+
+  /* Celebration animation when habit is completed */
+  .habit-card.celebrating {
+    animation: celebrate 0.6s ease-out;
+  }
+
+  .habit-card.celebrating .check-icon {
+    animation: checkPop 0.4s ease-out;
+  }
+
+  @keyframes celebrate {
+    0% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(103, 254, 153, 0.4);
+    }
+    25% {
+      transform: scale(1.02);
+      box-shadow: 0 0 0 8px rgba(103, 254, 153, 0.2);
+    }
+    50% {
+      transform: scale(0.98);
+      box-shadow: 0 0 0 12px rgba(103, 254, 153, 0.1);
+    }
+    100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(103, 254, 153, 0);
+    }
+  }
+
+  @keyframes checkPop {
+    0% {
+      transform: scale(0.5);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.3);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
       opacity: 1;
     }
   }
