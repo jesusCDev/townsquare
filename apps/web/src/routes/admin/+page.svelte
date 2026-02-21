@@ -89,6 +89,19 @@
   // Section order
   let sectionOrder = ['habits', 'timeline', 'tiles'];
 
+  // Accordion state for settings sections
+  let expandedSections = {
+    display: true,
+    tiles: false,
+    ai: false,
+    shortcuts: false,
+    backup: false
+  };
+
+  function toggleSection(section: string) {
+    expandedSections[section] = !expandedSections[section];
+  }
+
   onMount(async () => {
     await loadHabits();
     await loadSchedule();
@@ -1712,10 +1725,20 @@
       </div>
     {/if}
   {:else if activeTab === 'settings'}
-    <div class="section">
-      <h2>Display Settings</h2>
-      
-      <div class="setting-group">
+    <div class="section settings-accordion">
+      <!-- Display & Appearance Section -->
+      <div class="accordion-section" class:expanded={expandedSections.display}>
+        <button class="accordion-header" on:click={() => toggleSection('display')}>
+          <div class="accordion-title">
+            <span class="accordion-icon">🎨</span>
+            <h2>Display & Appearance</h2>
+          </div>
+          <span class="accordion-chevron">{expandedSections.display ? '▼' : '▶'}</span>
+        </button>
+
+        {#if expandedSections.display}
+        <div class="accordion-content">
+          <div class="setting-group">
         <div class="setting-item">
           <div class="setting-info">
             <label for="dimTimeout">Dim Mode Timeout</label>
@@ -1795,10 +1818,25 @@
           </div>
         </div>
       </div>
+        </div>
+        </div>
+        {/if}
+      </div>
 
-      <h2 style="margin-top: 3rem;">Dashboard Tiles</h2>
+      <!-- Dashboard Tiles & Layout Section -->
+      <div class="accordion-section" class:expanded={expandedSections.tiles}>
+        <button class="accordion-header" on:click={() => toggleSection('tiles')}>
+          <div class="accordion-title">
+            <span class="accordion-icon">📊</span>
+            <h2>Dashboard Tiles & Layout</h2>
+          </div>
+          <span class="accordion-chevron">{expandedSections.tiles ? '▼' : '▶'}</span>
+        </button>
 
-      <div class="setting-group">
+        {#if expandedSections.tiles}
+        <div class="accordion-content">
+          <h3 class="subsection-title">Tile Visibility</h3>
+          <div class="setting-group">
         <div class="setting-item">
           <div class="setting-info">
             <label for="showCountdown">Countdown Tile</label>
@@ -1851,9 +1889,8 @@
         </div>
       </div>
 
-      <h2 style="margin-top: 3rem;">Days Won Metrics</h2>
-
-      <div class="setting-group">
+          <h3 class="subsection-title" style="margin-top: 2rem;">Days Won Metrics</h3>
+          <div class="setting-group">
         <div class="setting-item">
           <div class="setting-info">
             <label for="showDaysWonMetric">Days Won Counter</label>
@@ -1923,9 +1960,8 @@
         </div>
       </div>
 
-      <h2 style="margin-top: 3rem;">Dashboard Layout</h2>
-
-      <div class="setting-group">
+          <h3 class="subsection-title" style="margin-top: 2rem;">Section Ordering</h3>
+          <div class="setting-group">
         <div class="setting-item">
           <div class="setting-info">
             <p class="description">Reorder the dashboard sections to customize your layout. Use the arrow buttons to move sections up or down.</p>
@@ -1961,10 +1997,23 @@
           {/each}
         </div>
       </div>
+        </div>
+        {/if}
+      </div>
 
-      <h2 style="margin-top: 3rem;">AI Settings</h2>
+      <!-- AI & Integrations Section -->
+      <div class="accordion-section" class:expanded={expandedSections.ai}>
+        <button class="accordion-header" on:click={() => toggleSection('ai')}>
+          <div class="accordion-title">
+            <span class="accordion-icon">🤖</span>
+            <h2>AI & Integrations</h2>
+          </div>
+          <span class="accordion-chevron">{expandedSections.ai ? '▼' : '▶'}</span>
+        </button>
 
-      <div class="setting-group">
+        {#if expandedSections.ai}
+        <div class="accordion-content">
+          <div class="setting-group">
         <div class="setting-item">
           <div class="setting-info">
             <label for="openaiApiKey">OpenAI API Key</label>
@@ -1982,10 +2031,23 @@
           </div>
         </div>
       </div>
+        </div>
+        {/if}
+      </div>
 
-      <h2 style="margin-top: 3rem;">Keyboard Shortcuts</h2>
-      
-      <div class="setting-group">
+      <!-- Keyboard Shortcuts Section -->
+      <div class="accordion-section" class:expanded={expandedSections.shortcuts}>
+        <button class="accordion-header" on:click={() => toggleSection('shortcuts')}>
+          <div class="accordion-title">
+            <span class="accordion-icon">⌨️</span>
+            <h2>Keyboard Shortcuts</h2>
+          </div>
+          <span class="accordion-chevron">{expandedSections.shortcuts ? '▼' : '▶'}</span>
+        </button>
+
+        {#if expandedSections.shortcuts}
+        <div class="accordion-content">
+          <div class="setting-group">
         <div class="shortcuts-info">
           <p class="description" style="margin-bottom: 1rem;">Use keyboard shortcuts to quickly control your dashboard without clicking.</p>
           
@@ -2021,10 +2083,23 @@
           </div>
         </div>
       </div>
+        </div>
+        {/if}
+      </div>
 
-      <h2 style="margin-top: 3rem;">Backup & Restore</h2>
+      <!-- Backup & Data Section -->
+      <div class="accordion-section" class:expanded={expandedSections.backup}>
+        <button class="accordion-header" on:click={() => toggleSection('backup')}>
+          <div class="accordion-title">
+            <span class="accordion-icon">💾</span>
+            <h2>Backup & Data</h2>
+          </div>
+          <span class="accordion-chevron">{expandedSections.backup ? '▼' : '▶'}</span>
+        </button>
 
-      <div class="setting-group">
+        {#if expandedSections.backup}
+        <div class="accordion-content">
+          <div class="setting-group">
         <div class="backup-section">
           <div class="backup-info">
             <h3>Export Data</h3>
@@ -2097,6 +2172,9 @@
             Run Backup Now
           </button>
         </div>
+      </div>
+        </div>
+        {/if}
       </div>
     </div>
   {/if}
@@ -3014,6 +3092,95 @@
   .move-btn:disabled {
     opacity: 0.3;
     cursor: not-allowed;
+  }
+
+  /* Accordion styles */
+  .settings-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .accordion-section {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .accordion-section.expanded {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(103, 254, 153, 0.2);
+  }
+
+  .accordion-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .accordion-header:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .accordion-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .accordion-icon {
+    font-size: 1.5rem;
+    filter: grayscale(0.2);
+  }
+
+  .accordion-title h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .accordion-chevron {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.9rem;
+    transition: transform 0.3s ease;
+  }
+
+  .accordion-section.expanded .accordion-chevron {
+    color: var(--accent-primary);
+  }
+
+  .accordion-content {
+    padding: 0 1.5rem 1.5rem 1.5rem;
+    animation: slideDown 0.3s ease-out;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .subsection-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 1rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   /* Modal styles */
