@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { differenceInDays, parseISO, isPast, isToday } from 'date-fns';
   import { scrambleMode, scrambleText } from '$lib/stores/scramble';
+  import { socket } from '$lib/stores/socket';
 
   interface Countdown {
     id: string;
@@ -15,6 +16,7 @@
   let loading = true;
   let now = new Date();
   let interval: ReturnType<typeof setInterval>;
+  let midnightTimeout: ReturnType<typeof setTimeout> | null = null;
 
   async function loadCountdowns() {
     try {
@@ -41,15 +43,53 @@
     return 'normal';
   }
 
+  function updateNow() {
+    now = new Date();
+  }
+
+  function scheduleNextMidnight() {
+    // Clear any existing midnight timeout
+    if (midnightTimeout) {
+      clearTimeout(midnightTimeout);
+    }
+
+    // Calculate milliseconds until next midnight
+    const tomorrow = new Date();
+    tomorrow.setHours(24, 0, 0, 0); // Set to next midnight
+    const msUntilMidnight = tomorrow.getTime() - Date.now();
+
+    // Schedule update at midnight
+    midnightTimeout = setTimeout(() => {
+      updateNow();
+      scheduleNextMidnight(); // Schedule the next one
+    }, msUntilMidnight);
+  }
+
   onMount(() => {
     loadCountdowns();
-    interval = setInterval(() => {
-      now = new Date();
-    }, 60000);
+
+    // Update every 60 seconds as a backup
+    interval = setInterval(updateNow, 60000);
+
+    // Schedule precise midnight updates
+    scheduleNextMidnight();
+
+    // Listen for day-changed event from server
+    const handleDayChanged = (data: { date: string; timestamp: string }) => {
+      console.log('Day changed event received:', data);
+      updateNow();
+    };
+
+    $socket?.on('day:changed', handleDayChanged);
+
+    return () => {
+      $socket?.off('day:changed', handleDayChanged);
+    };
   });
 
   onDestroy(() => {
     if (interval) clearInterval(interval);
+    if (midnightTimeout) clearTimeout(midnightTimeout);
   });
 
   $: primaryCountdown = countdowns[0];

@@ -3,6 +3,7 @@ import cron from 'node-cron';
 import { jobLogger } from '../lib/logger.js';
 import { checkNightMode } from './night-mode.js';
 import { runAutoBackup } from './auto-backup.js';
+import { broadcastDayChanged } from './daily-update.js';
 
 export function initializeJobs(io: Server) {
   jobLogger.info('Initializing scheduled jobs...');
@@ -10,6 +11,12 @@ export function initializeJobs(io: Server) {
   // Check night mode every minute
   cron.schedule('* * * * *', () => {
     checkNightMode(io);
+  });
+
+  // Broadcast day-changed event at midnight
+  cron.schedule('0 0 * * *', () => {
+    jobLogger.info('Midnight reached, broadcasting day-changed event');
+    broadcastDayChanged(io);
   });
 
   // Run auto-backup daily at 3:00 AM
