@@ -76,6 +76,7 @@
   let showCountdownTile = true;
   let showDaysWonTile = true;
   let showMotivationalCharacter = true;
+  let sectionOrder: string[] = ['habits', 'timeline', 'tiles'];
 
   async function loadTileSettings() {
     try {
@@ -85,6 +86,7 @@
         showCountdownTile = data.settings['tiles.countdown'] !== false;
         showDaysWonTile = data.settings['tiles.daysWon'] !== false;
         showMotivationalCharacter = data.settings['features.motivationalCharacter'] !== false;
+        sectionOrder = data.settings['dashboard.sectionOrder'] || ['habits', 'timeline', 'tiles'];
       }
     } catch (error) {
       console.error('Failed to load tile settings:', error);
@@ -236,38 +238,43 @@
     <Header />
   </div>
 
-  <!-- Habit Tracker + Motivational Character (80/20 split) -->
-  <div class="habit-section animate-in animate-in-2" class:full-width={!showMotivationalCharacter}>
-    <div class="habit-main" class:full-width={!showMotivationalCharacter}>
-      <HabitTracker />
-    </div>
-    {#if showMotivationalCharacter}
-      <div class="motivational-sidebar">
-        <MotivationalCharacter {habitStats} />
+  <!-- Dynamic Sections based on sectionOrder -->
+  {#each sectionOrder as section, index}
+    {#if section === 'habits'}
+      <!-- Habit Tracker + Motivational Character (80/20 split) -->
+      <div class="habit-section animate-in animate-in-{index + 2}" class:full-width={!showMotivationalCharacter}>
+        <div class="habit-main" class:full-width={!showMotivationalCharacter}>
+          <HabitTracker />
+        </div>
+        {#if showMotivationalCharacter}
+          <div class="motivational-sidebar">
+            <MotivationalCharacter {habitStats} />
+          </div>
+        {/if}
       </div>
+    {:else if section === 'timeline'}
+      <!-- Timeline -->
+      <div class="timeline-section animate-in animate-in-{index + 2}">
+        <Timeline />
+      </div>
+    {:else if section === 'tiles'}
+      <!-- Info Tiles Row -->
+      {#if showCountdownTile || showDaysWonTile}
+        <div class="tiles-row animate-in animate-in-{index + 2}">
+          {#if showDaysWonTile}
+            <div class="tile-half">
+              <DaysWonTile />
+            </div>
+          {/if}
+          {#if showCountdownTile}
+            <div class="tile-half">
+              <CountdownTile />
+            </div>
+          {/if}
+        </div>
+      {/if}
     {/if}
-  </div>
-
-  <!-- Timeline -->
-  <div class="timeline-section animate-in animate-in-3">
-    <Timeline />
-  </div>
-
-  <!-- Info Tiles Row -->
-  {#if showCountdownTile || showDaysWonTile}
-    <div class="tiles-row animate-in animate-in-4">
-      {#if showDaysWonTile}
-        <div class="tile-half">
-          <DaysWonTile />
-        </div>
-      {/if}
-      {#if showCountdownTile}
-        <div class="tile-half">
-          <CountdownTile />
-        </div>
-      {/if}
-    </div>
-  {/if}
+  {/each}
 
   <!-- Alert Notification Overlay -->
   <AlertNotification />

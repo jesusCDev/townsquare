@@ -80,6 +80,9 @@
   // OpenAI settings
   let openaiApiKey = '';
 
+  // Section order
+  let sectionOrder = ['habits', 'timeline', 'tiles'];
+
   onMount(async () => {
     await loadHabits();
     await loadSchedule();
@@ -103,6 +106,7 @@
         autoBackupEnabled = data.settings['backup.autoEnabled'] === true;
         autoBackupPath = data.settings['backup.path'] || '';
         openaiApiKey = data.settings['openai.apiKey'] || '';
+        sectionOrder = data.settings['dashboard.sectionOrder'] || ['habits', 'timeline', 'tiles'];
       }
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -209,6 +213,28 @@
       alert('Failed to save setting');
     }
   }
+
+  function moveSectionUp(index: number) {
+    if (index === 0) return; // Already at top
+    const newOrder = [...sectionOrder];
+    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+    sectionOrder = newOrder;
+    saveSetting('dashboard.sectionOrder', sectionOrder);
+  }
+
+  function moveSectionDown(index: number) {
+    if (index === sectionOrder.length - 1) return; // Already at bottom
+    const newOrder = [...sectionOrder];
+    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+    sectionOrder = newOrder;
+    saveSetting('dashboard.sectionOrder', sectionOrder);
+  }
+
+  const sectionLabels: Record<string, string> = {
+    'habits': 'Habit Tracker',
+    'timeline': 'Schedule Timeline',
+    'tiles': 'Info Tiles (Countdown & Days Won)'
+  };
 
   async function loadHabits() {
     const response = await fetch('/api/habits');
@@ -1815,6 +1841,45 @@
         </div>
       </div>
 
+      <h2 style="margin-top: 3rem;">Dashboard Layout</h2>
+
+      <div class="setting-group">
+        <div class="setting-item">
+          <div class="setting-info">
+            <p class="description">Reorder the dashboard sections to customize your layout. Use the arrow buttons to move sections up or down.</p>
+          </div>
+        </div>
+
+        <div class="section-reorder-list">
+          {#each sectionOrder as section, index}
+            <div class="section-reorder-item">
+              <div class="section-info">
+                <span class="section-number">{index + 1}</span>
+                <span class="section-name">{sectionLabels[section]}</span>
+              </div>
+              <div class="section-controls">
+                <button
+                  class="move-btn"
+                  disabled={index === 0}
+                  on:click={() => moveSectionUp(index)}
+                  title="Move up"
+                >
+                  ↑
+                </button>
+                <button
+                  class="move-btn"
+                  disabled={index === sectionOrder.length - 1}
+                  on:click={() => moveSectionDown(index)}
+                  title="Move down"
+                >
+                  ↓
+                </button>
+              </div>
+            </div>
+          {/each}
+        </div>
+      </div>
+
       <h2 style="margin-top: 3rem;">AI Settings</h2>
 
       <div class="setting-group">
@@ -2780,6 +2845,93 @@
     font-size: 0.9rem;
     color: var(--text-secondary);
     white-space: nowrap;
+  }
+
+  /* Section reorder styles */
+  .section-reorder-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .section-reorder-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    transition: all 0.2s;
+  }
+
+  .section-reorder-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(103, 254, 153, 0.3);
+  }
+
+  .section-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .section-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, rgba(103, 254, 153, 0.2), rgba(59, 130, 246, 0.2));
+    border: 2px solid rgba(103, 254, 153, 0.4);
+    border-radius: 50%;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--accent-primary);
+    flex-shrink: 0;
+  }
+
+  .section-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .section-controls {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .move-btn {
+    background: rgba(103, 254, 153, 0.1);
+    border: 1px solid rgba(103, 254, 153, 0.3);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    color: var(--accent-primary);
+    cursor: pointer;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-weight: 700;
+  }
+
+  .move-btn:hover:not(:disabled) {
+    background: rgba(103, 254, 153, 0.2);
+    border-color: rgba(103, 254, 153, 0.5);
+    transform: translateY(-2px);
+  }
+
+  .move-btn:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .move-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
   }
 
   /* Modal styles */
