@@ -7,15 +7,75 @@
   import AlertNotification from '$lib/components/AlertNotification.svelte';
   import CountdownTile from '$lib/components/CountdownTile.svelte';
   import DaysWonTile from '$lib/components/DaysWonTile.svelte';
+  import MotivationalCharacter from '$lib/components/MotivationalCharacter.svelte';
   import { nightModeInfo, temporarilyDisableDim, manuallyEnableDim } from '$lib/stores/nightmode';
   import { habits } from '$lib/stores/habits';
   import { triggerDismissAlert } from '$lib/stores/alertActions';
   import { toggleBlurMode } from '$lib/stores/blurmode';
   import { scrambleMode, toggleScramble } from '$lib/stores/scramble';
+  import { socket } from '$lib/stores/socket';
+
+  // Habit stats for motivational character
+  let habitStats = { totalHabits: 0, completedToday: 0, currentStreak: 0 };
+  let habitEntries: any[] = [];
+
+  // Fetch habit completion data
+  async function loadHabitStats() {
+    if (!$habits || $habits.length === 0) {
+      habitStats = { totalHabits: 0, completedToday: 0, currentStreak: 0 };
+      return;
+    }
+
+    const today = format(new Date(), 'yyyy-MM-dd');
+    let completedCount = 0;
+
+    try {
+      // Fetch entries for each habit
+      const results = await Promise.all(
+        $habits.map(async (habit) => {
+          try {
+            const res = await fetch(`/api/habits/${habit.id}/entries?days=2`);
+            const data = await res.json();
+            const entries = data.entries || data || [];
+            const todayEntry = entries.find((e: any) => e.date === today);
+
+            // Debug log
+            console.log(`Habit: ${habit.name}, Today: ${today}, Entry:`, todayEntry);
+
+            // Check if completed today (count must meet or exceed target)
+            const isComplete = todayEntry && todayEntry.count >= habit.targetCount;
+            return isComplete ? 1 : 0;
+          } catch (err) {
+            console.error(`Failed to fetch entries for habit ${habit.name}:`, err);
+            return 0;
+          }
+        })
+      );
+
+      completedCount = results.reduce((sum, val) => sum + val, 0);
+
+      habitStats = {
+        totalHabits: $habits.length,
+        completedToday: completedCount,
+        currentStreak: 0 // Could calculate this later
+      };
+
+      console.log('Habit stats updated:', habitStats);
+    } catch (error) {
+      console.error('Failed to load habit stats:', error);
+      habitStats = { totalHabits: $habits.length, completedToday: 0, currentStreak: 0 };
+    }
+  }
+
+  // Update habit stats when habits change
+  $: if ($habits && $habits.length > 0) {
+    loadHabitStats();
+  }
 
   // Tile visibility settings
   let showCountdownTile = true;
   let showDaysWonTile = true;
+  let showMotivationalCharacter = true;
 
   async function loadTileSettings() {
     try {
@@ -24,6 +84,7 @@
       if (data.settings) {
         showCountdownTile = data.settings['tiles.countdown'] !== false;
         showDaysWonTile = data.settings['tiles.daysWon'] !== false;
+        showMotivationalCharacter = data.settings['features.motivationalCharacter'] !== false;
       }
     } catch (error) {
       console.error('Failed to load tile settings:', error);
@@ -142,6 +203,20 @@
       window.addEventListener('keydown', handleKeydown, true);
     }
     loadTileSettings();
+
+    // Listen for habit updates via WebSocket to refresh stats
+    const handleHabitUpdate = (data: any) => {
+      console.log('🎯 Motivational: Habit update received', data);
+      // Small delay to ensure habit entries are fetched
+      setTimeout(() => loadHabitStats(), 100);
+    };
+
+    // Subscribe to socket events for habit updates
+    if ($socket) {
+      console.log('🎯 Motivational: Setting up WebSocket listeners');
+      $socket.on('habit:updated', handleHabitUpdate);
+      $socket.on('habit:completed', handleHabitUpdate);
+    }
   });
 
   onDestroy(() => {
@@ -161,9 +236,16 @@
     <Header />
   </div>
 
-  <!-- Habit Tracker -->
-  <div class="habit-section animate-in animate-in-2">
-    <HabitTracker />
+  <!-- Habit Tracker + Motivational Character (80/20 split) -->
+  <div class="habit-section animate-in animate-in-2" class:full-width={!showMotivationalCharacter}>
+    <div class="habit-main" class:full-width={!showMotivationalCharacter}>
+      <HabitTracker />
+    </div>
+    {#if showMotivationalCharacter}
+      <div class="motivational-sidebar">
+        <MotivationalCharacter {habitStats} />
+      </div>
+    {/if}
   </div>
 
   <!-- Timeline -->
@@ -216,8 +298,29 @@
 
   .habit-section {
     flex: 0 1 auto;
+    min-height: 0;
+    display: flex;
+    gap: 1rem;
+  }
+
+  .habit-section.full-width {
+    display: block;
+  }
+
+  .habit-main {
+    flex: 0 1 80%;
     overflow-y: auto;
     min-height: 0;
+  }
+
+  .habit-main.full-width {
+    flex: 1 1 100%;
+  }
+
+  .motivational-sidebar {
+    flex: 0 1 20%;
+    min-width: 280px;
+    overflow-y: auto;
   }
 
   .timeline-section {

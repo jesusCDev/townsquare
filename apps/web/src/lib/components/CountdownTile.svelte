@@ -10,6 +10,7 @@
     targetDate: string;
     icon: string | null;
     color: string;
+    createdAt: string;
   }
 
   let countdowns: Countdown[] = [];
@@ -41,6 +42,19 @@
     if (days <= 3) return 'urgent';
     if (days <= 14) return 'soon';
     return 'normal';
+  }
+
+  function getProgressPercentage(countdown: Countdown): number {
+    if (!countdown.createdAt) return 0;
+
+    const start = parseISO(countdown.createdAt);
+    const target = parseISO(countdown.targetDate);
+    const totalDays = differenceInDays(target, start);
+    const daysPassed = differenceInDays(now, start);
+
+    if (totalDays <= 0) return 100;
+    const progress = (daysPassed / totalDays) * 100;
+    return Math.min(Math.max(progress, 0), 100);
   }
 
   function updateNow() {
@@ -109,25 +123,32 @@
   {:else}
     {@const days = getDaysRemaining(primaryCountdown.targetDate)}
     {@const status = getStatus(days)}
+    {@const progress = getProgressPercentage(primaryCountdown)}
     <div class="primary-countdown {status}">
-      <div class="countdown-display">
-        <span class="days-number" style="--accent-color: {primaryCountdown.color}">{Math.abs(days)}</span>
-        <span class="days-unit">{Math.abs(days) === 1 ? 'day' : 'days'}</span>
-        <span class="days-direction">
-          {#if days < 0}
-            ago
-          {:else if days === 0}
-            — today!
-          {:else}
-            left
+      <div class="progress-background" style="--progress: {progress}%; --progress-color: {primaryCountdown.color}"></div>
+      <div class="countdown-content">
+        <div class="countdown-display">
+          <span class="days-number" style="--accent-color: {primaryCountdown.color}">{Math.abs(days)}</span>
+          <span class="days-unit">{Math.abs(days) === 1 ? 'day' : 'days'}</span>
+          <span class="days-direction">
+            {#if days < 0}
+              ago
+            {:else if days === 0}
+              — today!
+            {:else}
+              left
+            {/if}
+          </span>
+        </div>
+        <div class="countdown-label">
+          {#if primaryCountdown.icon && !$scrambleMode}
+            <span class="label-icon">{primaryCountdown.icon}</span>
           {/if}
-        </span>
-      </div>
-      <div class="countdown-label">
-        {#if primaryCountdown.icon && !$scrambleMode}
-          <span class="label-icon">{primaryCountdown.icon}</span>
-        {/if}
-        <span class="label-text">{$scrambleMode ? scrambleText(primaryCountdown.label) : primaryCountdown.label}</span>
+          <span class="label-text">{$scrambleMode ? scrambleText(primaryCountdown.label) : primaryCountdown.label}</span>
+        </div>
+        <div class="progress-info">
+          <span class="progress-text">{Math.round(progress)}% complete</span>
+        </div>
       </div>
     </div>
 
@@ -223,6 +244,43 @@
     justify-content: center;
     flex: 1;
     gap: 0.25rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .progress-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: var(--progress, 0%);
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--progress-color, #67fe99) 10%, transparent) 0%,
+      color-mix(in srgb, var(--progress-color, #67fe99) 5%, transparent) 100%
+    );
+    transition: width 0.5s ease;
+    z-index: 0;
+  }
+
+  .countdown-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .progress-info {
+    margin-top: 0.5rem;
+  }
+
+  .progress-text {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.4);
+    font-family: 'JetBrains Mono', monospace;
   }
 
   .countdown-display {

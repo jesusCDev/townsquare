@@ -8,6 +8,7 @@ import { settingsRoutes } from './settings.js';
 import { countdownRoutes } from './countdowns.js';
 import { statsRoutes } from './stats.js';
 import { testRoutes } from './test.js';
+import { motivationRoutes } from './motivation.js';
 
 export async function registerRoutes(app: FastifyInstance) {
   // Health check
@@ -21,6 +22,7 @@ export async function registerRoutes(app: FastifyInstance) {
   await app.register(settingsRoutes);
   await app.register(countdownRoutes);
   await app.register(statsRoutes);
+  await app.register(motivationRoutes);
 
   // Test routes (development only)
   if (process.env.NODE_ENV !== 'production') {

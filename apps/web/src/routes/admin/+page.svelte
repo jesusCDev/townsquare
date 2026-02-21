@@ -71,10 +71,14 @@
   // Tile visibility
   let showCountdownTile = true;
   let showDaysWonTile = true;
+  let showMotivationalCharacter = true;
 
   // Auto-backup settings
   let autoBackupEnabled = false;
   let autoBackupPath = '';
+
+  // OpenAI settings
+  let openaiApiKey = '';
 
   onMount(async () => {
     await loadHabits();
@@ -95,8 +99,10 @@
         nightModeEnd = data.settings['nightMode.end'] || '06:00';
         showCountdownTile = data.settings['tiles.countdown'] !== false;
         showDaysWonTile = data.settings['tiles.daysWon'] !== false;
+        showMotivationalCharacter = data.settings['features.motivationalCharacter'] !== false;
         autoBackupEnabled = data.settings['backup.autoEnabled'] === true;
         autoBackupPath = data.settings['backup.path'] || '';
+        openaiApiKey = data.settings['openai.apiKey'] || '';
       }
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -1744,6 +1750,44 @@
               />
               <span class="toggle-slider"></span>
             </label>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="showMotivational">Motivational Character</label>
+            <p class="description">Show the AI-powered motivational coach sidebar (requires OpenAI API key)</p>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                bind:checked={showMotivationalCharacter}
+                on:change={() => saveSetting('features.motivationalCharacter', showMotivationalCharacter)}
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <h2 style="margin-top: 3rem;">AI Settings</h2>
+
+      <div class="setting-group">
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="openaiApiKey">OpenAI API Key</label>
+            <p class="description">Your OpenAI API key for generating motivational character images. Get one at <a href="https://platform.openai.com/api-keys" target="_blank" style="color: #67fe99;">platform.openai.com</a></p>
+          </div>
+          <div class="setting-control">
+            <input
+              id="openaiApiKey"
+              type="password"
+              placeholder="sk-..."
+              bind:value={openaiApiKey}
+              on:blur={() => saveSetting('openai.apiKey', openaiApiKey)}
+              style="font-family: monospace; width: 100%; max-width: 400px;"
+            />
           </div>
         </div>
       </div>
