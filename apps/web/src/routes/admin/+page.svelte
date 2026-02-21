@@ -73,6 +73,12 @@
   let showDaysWonTile = true;
   let showMotivationalCharacter = true;
 
+  // Days Won metrics visibility
+  let showDaysWonMetric = true;
+  let showWinRateMetric = true;
+  let showStreaksMetric = true;
+  let showPeriodsMetric = true;
+
   // Auto-backup settings
   let autoBackupEnabled = false;
   let autoBackupPath = '';
@@ -103,6 +109,10 @@
         showCountdownTile = data.settings['tiles.countdown'] !== false;
         showDaysWonTile = data.settings['tiles.daysWon'] !== false;
         showMotivationalCharacter = data.settings['features.motivationalCharacter'] !== false;
+        showDaysWonMetric = data.settings['daysWon.showDaysWon'] !== false;
+        showWinRateMetric = data.settings['daysWon.showWinRate'] !== false;
+        showStreaksMetric = data.settings['daysWon.showStreaks'] !== false;
+        showPeriodsMetric = data.settings['daysWon.showPeriods'] !== false;
         autoBackupEnabled = data.settings['backup.autoEnabled'] === true;
         autoBackupPath = data.settings['backup.path'] || '';
         openaiApiKey = data.settings['openai.apiKey'] || '';
@@ -1834,6 +1844,78 @@
                 type="checkbox"
                 bind:checked={showMotivationalCharacter}
                 on:change={() => saveSetting('features.motivationalCharacter', showMotivationalCharacter)}
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <h2 style="margin-top: 3rem;">Days Won Metrics</h2>
+
+      <div class="setting-group">
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="showDaysWonMetric">Days Won Counter</label>
+            <p class="description">Show the days won counter with progress ring</p>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                bind:checked={showDaysWonMetric}
+                on:change={() => saveSetting('daysWon.showDaysWon', showDaysWonMetric)}
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="showWinRateMetric">Win Rate Percentage</label>
+            <p class="description">Show the win rate percentage next to days won</p>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                bind:checked={showWinRateMetric}
+                on:change={() => saveSetting('daysWon.showWinRate', showWinRateMetric)}
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="showStreaksMetric">Streak Stats</label>
+            <p class="description">Show current and best streak counters</p>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                bind:checked={showStreaksMetric}
+                on:change={() => saveSetting('daysWon.showStreaks', showStreaksMetric)}
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="showPeriodsMetric">Period Wins Grid</label>
+            <p class="description">Show weeks, months, quarters, and years won</p>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                bind:checked={showPeriodsMetric}
+                on:change={() => saveSetting('daysWon.showPeriods', showPeriodsMetric)}
               />
               <span class="toggle-slider"></span>
             </label>

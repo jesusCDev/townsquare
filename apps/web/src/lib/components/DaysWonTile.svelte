@@ -16,6 +16,12 @@
   let stats: WinStats | null = null;
   let loading = true;
 
+  // Visibility settings
+  let showDaysWon = true;
+  let showWinRate = true;
+  let showStreaks = true;
+  let showPeriods = true;
+
   async function loadStats() {
     try {
       const response = await fetch('/api/stats/days-won');
@@ -24,6 +30,21 @@
       console.error('Failed to load win stats:', error);
     } finally {
       loading = false;
+    }
+  }
+
+  async function loadSettings() {
+    try {
+      const response = await fetch('/api/settings');
+      const data = await response.json();
+      if (data.settings) {
+        showDaysWon = data.settings['daysWon.showDaysWon'] !== false;
+        showWinRate = data.settings['daysWon.showWinRate'] !== false;
+        showStreaks = data.settings['daysWon.showStreaks'] !== false;
+        showPeriods = data.settings['daysWon.showPeriods'] !== false;
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
     }
   }
 
@@ -39,6 +60,7 @@
 
   onMount(() => {
     loadStats();
+    loadSettings();
   });
 </script>
 
@@ -60,77 +82,87 @@
   {:else}
     <div class="wins-content">
       <!-- Main Win Counter -->
-      <div class="main-counter">
-        <div class="counter-ring">
-          <svg viewBox="0 0 100 100" class="progress-ring">
-            <circle
-              cx="50" cy="50" r="42"
-              fill="none"
-              stroke="rgba(255,255,255,0.06)"
-              stroke-width="6"
-            />
-            <circle
-              cx="50" cy="50" r="42"
-              fill="none"
-              stroke="url(#winGradient)"
-              stroke-width="6"
-              stroke-linecap="round"
-              stroke-dasharray="{getWinRate(stats.daysWon, stats.totalDays) * 2.64} 264"
-              transform="rotate(-90 50 50)"
-              class="progress-arc"
-            />
-            <defs>
-              <linearGradient id="winGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#67fe99" />
-                <stop offset="100%" stop-color="#34d399" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <div class="counter-content">
-            <span class="counter-value">{formatNumber(stats.daysWon)}</span>
-            <span class="counter-label">days won</span>
-          </div>
+      {#if showDaysWon || showWinRate}
+        <div class="main-counter" class:single-item={!showDaysWon || !showWinRate}>
+          {#if showDaysWon}
+            <div class="counter-ring">
+              <svg viewBox="0 0 100 100" class="progress-ring">
+                <circle
+                  cx="50" cy="50" r="42"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.06)"
+                  stroke-width="6"
+                />
+                <circle
+                  cx="50" cy="50" r="42"
+                  fill="none"
+                  stroke="url(#winGradient)"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                  stroke-dasharray="{getWinRate(stats.daysWon, stats.totalDays) * 2.64} 264"
+                  transform="rotate(-90 50 50)"
+                  class="progress-arc"
+                />
+                <defs>
+                  <linearGradient id="winGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#67fe99" />
+                    <stop offset="100%" stop-color="#34d399" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div class="counter-content">
+                <span class="counter-value">{formatNumber(stats.daysWon)}</span>
+                <span class="counter-label">days won</span>
+              </div>
+            </div>
+          {/if}
+          {#if showWinRate}
+            <div class="win-rate">
+              <span class="rate-value">{getWinRate(stats.daysWon, stats.totalDays)}%</span>
+              <span class="rate-label">win rate</span>
+            </div>
+          {/if}
         </div>
-        <div class="win-rate">
-          <span class="rate-value">{getWinRate(stats.daysWon, stats.totalDays)}%</span>
-          <span class="rate-label">win rate</span>
-        </div>
-      </div>
+      {/if}
 
       <!-- Streak Display -->
-      <div class="streak-bar">
-        <div class="streak current">
-          <span class="streak-icon">&#128293;</span>
-          <span class="streak-value">{stats.currentStreak}</span>
-          <span class="streak-label">streak</span>
+      {#if showStreaks}
+        <div class="streak-bar">
+          <div class="streak current">
+            <span class="streak-icon">&#128293;</span>
+            <span class="streak-value">{stats.currentStreak}</span>
+            <span class="streak-label">streak</span>
+          </div>
+          <div class="streak-divider"></div>
+          <div class="streak best">
+            <span class="streak-icon">&#11088;</span>
+            <span class="streak-value">{stats.bestStreak}</span>
+            <span class="streak-label">best</span>
+          </div>
         </div>
-        <div class="streak-divider"></div>
-        <div class="streak best">
-          <span class="streak-icon">&#11088;</span>
-          <span class="streak-value">{stats.bestStreak}</span>
-          <span class="streak-label">best</span>
-        </div>
-      </div>
+      {/if}
 
       <!-- Period Wins Grid -->
-      <div class="period-wins">
-        <div class="period-item">
-          <span class="period-value">{stats.weeksWon}</span>
-          <span class="period-label">weeks</span>
+      {#if showPeriods}
+        <div class="period-wins">
+          <div class="period-item">
+            <span class="period-value">{stats.weeksWon}</span>
+            <span class="period-label">weeks</span>
+          </div>
+          <div class="period-item">
+            <span class="period-value">{stats.monthsWon}</span>
+            <span class="period-label">months</span>
+          </div>
+          <div class="period-item">
+            <span class="period-value">{stats.quartersWon}</span>
+            <span class="period-label">quarters</span>
+          </div>
+          <div class="period-item">
+            <span class="period-value">{stats.yearsWon}</span>
+            <span class="period-label">years</span>
+          </div>
         </div>
-        <div class="period-item">
-          <span class="period-value">{stats.monthsWon}</span>
-          <span class="period-label">months</span>
-        </div>
-        <div class="period-item">
-          <span class="period-value">{stats.quartersWon}</span>
-          <span class="period-label">quarters</span>
-        </div>
-        <div class="period-item">
-          <span class="period-value">{stats.yearsWon}</span>
-          <span class="period-label">years</span>
-        </div>
-      </div>
+      {/if}
     </div>
   {/if}
 </div>
@@ -240,6 +272,10 @@
     display: flex;
     align-items: center;
     gap: 0.8rem;
+  }
+
+  .main-counter.single-item {
+    justify-content: center;
   }
 
   .counter-ring {
