@@ -22,9 +22,9 @@
   let editingBlock: any = null;
   
   $: allDayBlocks = scheduleBlocks.filter(b => b.daysMask === 127);
-  $: weekdayBlocks = scheduleBlocks.filter(b => b.daysMask === 31);
-  $: weekendBlocks = scheduleBlocks.filter(b => b.daysMask === 96);
-  $: customBlocks = scheduleBlocks.filter(b => b.daysMask !== 127 && b.daysMask !== 31 && b.daysMask !== 96);
+  $: weekdayBlocks = scheduleBlocks.filter(b => b.daysMask === 62);
+  $: weekendBlocks = scheduleBlocks.filter(b => b.daysMask === 65);
+  $: customBlocks = scheduleBlocks.filter(b => b.daysMask !== 127 && b.daysMask !== 62 && b.daysMask !== 65);
   let newBlock = {
     name: '',
     icon: '',
@@ -47,7 +47,7 @@
   let newAlert = {
     name: '',
     time: '09:00',
-    daysMask: 31, // Weekdays by default
+    daysMask: 62, // Weekdays by default (Mon-Fri)
     gracePeriod: 5,
   };
   let editingAlert: any = null;
@@ -247,7 +247,7 @@
 
       if (response.ok) {
         await loadAlerts();
-        newAlert = { name: '', time: '09:00', daysMask: 31, gracePeriod: 5 };
+        newAlert = { name: '', time: '09:00', daysMask: 62, gracePeriod: 5 };
       }
     } catch (error) {
       console.error('Failed to create alert:', error);
@@ -323,9 +323,9 @@
     if (preset === 'all') {
       editingAlert.daysMask = 127;
     } else if (preset === 'weekdays') {
-      editingAlert.daysMask = 31;
+      editingAlert.daysMask = 62; // Mon-Fri
     } else if (preset === 'weekend') {
-      editingAlert.daysMask = 96;
+      editingAlert.daysMask = 65; // Sat-Sun
     }
     editingAlert = { ...editingAlert };
   }
@@ -334,9 +334,9 @@
     if (preset === 'all') {
       newAlert.daysMask = 127;
     } else if (preset === 'weekdays') {
-      newAlert.daysMask = 31;
+      newAlert.daysMask = 62; // Mon-Fri
     } else if (preset === 'weekend') {
-      newAlert.daysMask = 96;
+      newAlert.daysMask = 65; // Sat-Sun
     }
     // Force reactivity by creating a new reference
     newAlert = { ...newAlert };
@@ -344,9 +344,9 @@
 
   function getDayMaskLabel(daysMask: number): string {
     if (daysMask === 127) return 'Every day';
-    if (daysMask === 31) return 'Weekdays';
-    if (daysMask === 96) return 'Weekend';
-    
+    if (daysMask === 62) return 'Weekdays';
+    if (daysMask === 65) return 'Weekend';
+
     const days = [];
     for (let i = 0; i < 7; i++) {
       if ((daysMask & (1 << i)) !== 0) {
@@ -609,8 +609,8 @@
   function getSchedulePreviews(daysMask: number, newBlockData: typeof newBlock, _blocks: typeof scheduleBlocks): PreviewRow[] {
     if (daysMask === 0) return [];
 
-    const hasWeekdays = (daysMask & 31) !== 0;  // Mon-Fri bits
-    const hasWeekend = (daysMask & 96) !== 0;   // Sat-Sun bits
+    const hasWeekdays = (daysMask & 62) !== 0;  // Mon-Fri bits
+    const hasWeekend = (daysMask & 65) !== 0;   // Sat-Sun bits
 
     const rows: PreviewRow[] = [];
 
@@ -618,25 +618,25 @@
       // Show both weekday and weekend rows
       rows.push({
         label: 'Weekdays (Mon-Fri)',
-        dayMask: daysMask & 31,
-        slots: getScheduleForDayMask(daysMask & 31, newBlockData),
+        dayMask: daysMask & 62,
+        slots: getScheduleForDayMask(daysMask & 62, newBlockData),
       });
       rows.push({
         label: 'Weekend (Sat-Sun)',
-        dayMask: daysMask & 96,
-        slots: getScheduleForDayMask(daysMask & 96, newBlockData),
+        dayMask: daysMask & 65,
+        slots: getScheduleForDayMask(daysMask & 65, newBlockData),
       });
     } else if (hasWeekdays) {
       rows.push({
         label: 'Weekdays',
-        dayMask: daysMask & 31,
-        slots: getScheduleForDayMask(daysMask & 31, newBlockData),
+        dayMask: daysMask & 62,
+        slots: getScheduleForDayMask(daysMask & 62, newBlockData),
       });
     } else if (hasWeekend) {
       rows.push({
         label: 'Weekend',
-        dayMask: daysMask & 96,
-        slots: getScheduleForDayMask(daysMask & 96, newBlockData),
+        dayMask: daysMask & 65,
+        slots: getScheduleForDayMask(daysMask & 65, newBlockData),
       });
     }
 
@@ -831,9 +831,9 @@
     if (preset === 'all') {
       newBlock.daysMask = 127; // All days
     } else if (preset === 'weekdays') {
-      newBlock.daysMask = 31; // Mon-Fri (bits 1-5)
+      newBlock.daysMask = 62; // Mon-Fri (bits 1-5)
     } else if (preset === 'weekend') {
-      newBlock.daysMask = 96; // Sat-Sun (bits 6-7)
+      newBlock.daysMask = 65; // Sat-Sun (bits 0 & 6)
     }
     // Force reactivity by creating a new reference
     newBlock = { ...newBlock };
