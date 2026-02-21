@@ -127,27 +127,31 @@
     <div class="primary-countdown {status}">
       <div class="progress-background" style="--progress: {progress}%; --progress-color: {primaryCountdown.color}"></div>
       <div class="countdown-content">
-        <div class="countdown-display">
+        <div class="countdown-number-section">
           <span class="days-number" style="--accent-color: {primaryCountdown.color}">{Math.abs(days)}</span>
-          <span class="days-unit">{Math.abs(days) === 1 ? 'day' : 'days'}</span>
-          <span class="days-direction">
-            {#if days < 0}
-              ago
-            {:else if days === 0}
-              — today!
-            {:else}
-              left
+        </div>
+        <div class="countdown-details-section">
+          <div class="countdown-label">
+            {#if primaryCountdown.icon && !$scrambleMode}
+              <span class="label-icon">{primaryCountdown.icon}</span>
             {/if}
-          </span>
-        </div>
-        <div class="countdown-label">
-          {#if primaryCountdown.icon && !$scrambleMode}
-            <span class="label-icon">{primaryCountdown.icon}</span>
-          {/if}
-          <span class="label-text">{$scrambleMode ? scrambleText(primaryCountdown.label) : primaryCountdown.label}</span>
-        </div>
-        <div class="progress-info">
-          <span class="progress-text">{Math.round(progress)}% complete</span>
+            <span class="label-text">{$scrambleMode ? scrambleText(primaryCountdown.label) : primaryCountdown.label}</span>
+          </div>
+          <div class="countdown-text">
+            <span class="days-unit">{Math.abs(days) === 1 ? 'day' : 'days'}</span>
+            <span class="days-direction">
+              {#if days < 0}
+                ago
+              {:else if days === 0}
+                today!
+              {:else}
+                left
+              {/if}
+            </span>
+          </div>
+          <div class="progress-info">
+            <span class="progress-text">{Math.round(progress)}% complete</span>
+          </div>
         </div>
       </div>
     </div>
@@ -267,13 +271,46 @@
     position: relative;
     z-index: 1;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    gap: 0.25rem;
+    gap: 1.5rem;
+    width: 100%;
+    height: 100%;
+  }
+
+  .countdown-number-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+  }
+
+  .days-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7rem;
+    font-weight: 800;
+    line-height: 0.9;
+    color: var(--accent-color, #67fe99);
+    text-shadow: 0 0 60px color-mix(in srgb, var(--accent-color, #67fe99) 50%, transparent);
+    letter-spacing: -0.05em;
+  }
+
+  .countdown-details-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+    justify-content: center;
+  }
+
+  .countdown-text {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
   }
 
   .progress-info {
-    margin-top: 0.5rem;
+    margin-top: 0.25rem;
   }
 
   .progress-text {
@@ -281,22 +318,6 @@
     font-weight: 500;
     color: rgba(255, 255, 255, 0.4);
     font-family: 'JetBrains Mono', monospace;
-  }
-
-  .countdown-display {
-    display: flex;
-    align-items: baseline;
-    gap: 0.4rem;
-  }
-
-  .days-number {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 4rem;
-    font-weight: 800;
-    line-height: 1;
-    color: var(--accent-color, #67fe99);
-    text-shadow: 0 0 40px color-mix(in srgb, var(--accent-color, #67fe99) 50%, transparent);
-    letter-spacing: -0.03em;
   }
 
   .days-unit {
@@ -317,20 +338,20 @@
   .countdown-label {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    margin-top: 0.5rem;
-    padding: 0.35rem 0.75rem;
+    gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
     background: rgba(255, 255, 255, 0.04);
-    border-radius: 20px;
+    border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.06);
+    align-self: flex-start;
   }
 
   .label-icon {
-    font-size: 0.9rem;
+    font-size: 1rem;
   }
 
   .label-text {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     font-weight: 600;
     color: rgba(255, 255, 255, 0.8);
     letter-spacing: 0.02em;
