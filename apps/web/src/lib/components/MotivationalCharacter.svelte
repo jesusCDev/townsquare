@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { scrambleMode, scrambleText } from '$lib/stores/scramble';
+  import { format } from 'date-fns';
 
   export let habitStats: { totalHabits: number; completedToday: number; currentStreak: number } = {
     totalHabits: 0,
@@ -12,34 +13,88 @@
   let message: string = '';
   let loading = false;
   let error: string | null = null;
+  let healthScore: number = 50; // 0-100 scale
+  let lastGeneratedDate: string | null = null;
+  let allHabitsChecked: boolean = false;
 
-  async function generateMotivation() {
+  // Load from localStorage
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('shibaState');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        imageUrl = parsed.imageUrl || null;
+        lastGeneratedDate = parsed.lastGeneratedDate || null;
+        healthScore = parsed.healthScore ?? 50;
+      } catch (e) {
+        console.error('Failed to load Shiba state:', e);
+      }
+    }
+  }
+
+  // Calculate health score based on habit performance
+  function calculateHealthScore(): number {
+    if (habitStats.totalHabits === 0) return 50;
+
+    // Today's completion contributes 40%
+    const todayScore = (habitStats.completedToday / habitStats.totalHabits) * 40;
+
+    // Streak contributes 30% (cap at 7 days for max score)
+    const streakScore = Math.min(habitStats.currentStreak / 7, 1) * 30;
+
+    // Base health of 30% (gives some baseline even on bad days)
+    const baseScore = 30;
+
+    return Math.round(todayScore + streakScore + baseScore);
+  }
+
+  async function generateShibaImage(forceGenerate = false) {
     if (loading) return;
+
+    const today = format(new Date(), 'yyyy-MM-dd');
+    healthScore = calculateHealthScore();
+    allHabitsChecked = habitStats.totalHabits > 0 && habitStats.completedToday === habitStats.totalHabits;
+
+    // Only generate if:
+    // 1. Forced (manual button click)
+    // 2. All habits checked AND it's a new day
+    // 3. No image exists yet
+    if (!forceGenerate && imageUrl && lastGeneratedDate === today) {
+      console.log('Shiba already generated today');
+      updateMessage();
+      return;
+    }
+
+    if (!forceGenerate && !allHabitsChecked && imageUrl) {
+      console.log('Not all habits checked yet');
+      updateMessage();
+      return;
+    }
 
     loading = true;
     error = null;
 
     try {
-      // Determine the mood based on habit completion
-      const completionRate = habitStats.totalHabits > 0
-        ? habitStats.completedToday / habitStats.totalHabits
-        : 0;
-
-      let mood: 'encouraging' | 'celebrating' | 'supportive';
       let prompt: string;
+      let mood: string;
 
-      if (completionRate >= 0.8) {
-        mood = 'celebrating';
-        message = "You're crushing it! Keep that momentum going! 🔥";
-        prompt = "A cheerful, energetic anime-style character celebrating with raised fists, vibrant colors, inspiring and motivational, digital art";
-      } else if (completionRate >= 0.5) {
-        mood = 'encouraging';
-        message = "You're doing great! Small steps lead to big wins! 💪";
-        prompt = "A friendly, supportive anime-style character with an encouraging smile, warm colors, gentle and motivating, digital art";
+      // Shiba Inu states based on health score
+      if (healthScore >= 80) {
+        mood = 'thriving';
+        message = "Your Shiba is thriving! Keep it up! 🐕✨";
+        prompt = "A happy, healthy Shiba Inu dog sitting proudly, bright eyes, fluffy clean coat, wagging tail, cheerful expression, sunny background, vibrant colors, warm lighting, digital art, cute, high quality";
+      } else if (healthScore >= 60) {
+        mood = 'healthy';
+        message = "Your Shiba is doing well! 🐕💚";
+        prompt = "A content Shiba Inu dog sitting calmly, alert eyes, well-groomed coat, neutral happy expression, pleasant background, natural colors, soft lighting, digital art, cute";
+      } else if (healthScore >= 40) {
+        mood = 'needs_care';
+        message = "Your Shiba needs more attention... 🐕💛";
+        prompt = "A tired Shiba Inu dog sitting with slightly droopy ears, looking up hopefully, coat a bit messy, gentle sad eyes, muted colors, cloudy background, digital art, cute but needs care";
       } else {
-        mood = 'supportive';
-        message = "It's okay to stumble. What matters is getting back up! 🌟";
-        prompt = "A kind, empathetic anime-style character with outstretched hand offering help, soft pastel colors, comforting and uplifting, digital art";
+        mood = 'neglected';
+        message = "Your Shiba is feeling neglected... 🐕💔";
+        prompt = "A sad Shiba Inu dog sitting alone with droopy ears and tail, tired eyes, disheveled coat, looking down, dark muted colors, gloomy background, digital art, needs love and care";
       }
 
       const response = await fetch('/api/motivation/generate', {
@@ -49,56 +104,91 @@
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate motivation');
+        throw new Error('Failed to generate Shiba');
       }
 
       const data = await response.json();
       imageUrl = data.imageUrl;
-    } catch (err: any) {
-      console.error('Failed to generate motivation:', err);
+      lastGeneratedDate = today;
 
-      // Check if it's an API key error
+      // Save to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('shibaState', JSON.stringify({
+          imageUrl,
+          lastGeneratedDate,
+          healthScore
+        }));
+      }
+    } catch (err: any) {
+      console.error('Failed to generate Shiba:', err);
+
       if (err?.message?.includes('API key') || err?.response?.status === 503) {
         error = 'OpenAI API key not configured. Add it in Settings → AI Settings.';
       } else {
-        error = 'Could not generate motivation. Check console for details.';
+        error = 'Could not generate Shiba. Check console for details.';
       }
 
-      message = "Every day is a new chance to be better! 🌅";
+      message = "Your Shiba is waiting for you... 🐕";
     } finally {
       loading = false;
     }
   }
 
-  onMount(() => {
-    // Generate on mount if completion rate is low
-    const completionRate = habitStats.totalHabits > 0
-      ? habitStats.completedToday / habitStats.totalHabits
-      : 0;
+  function updateMessage() {
+    healthScore = calculateHealthScore();
 
-    if (completionRate < 0.5) {
-      generateMotivation();
+    if (healthScore >= 80) {
+      message = "Your Shiba is thriving! Keep it up! 🐕✨";
+    } else if (healthScore >= 60) {
+      message = "Your Shiba is doing well! 🐕💚";
+    } else if (healthScore >= 40) {
+      message = "Your Shiba needs more attention... 🐕💛";
     } else {
-      message = "Keep up the great work! 🎯";
+      message = "Your Shiba is feeling neglected... 🐕💔";
+    }
+  }
+
+  onMount(() => {
+    updateMessage();
+
+    // Check if we should generate (all habits checked today and it's a new day)
+    const today = format(new Date(), 'yyyy-MM-dd');
+    allHabitsChecked = habitStats.totalHabits > 0 && habitStats.completedToday === habitStats.totalHabits;
+
+    if (allHabitsChecked && lastGeneratedDate !== today) {
+      generateShibaImage();
+    } else if (!imageUrl) {
+      // No image yet, generate one
+      generateShibaImage();
     }
   });
 
-  $: completionRate = habitStats.totalHabits > 0
-    ? habitStats.completedToday / habitStats.totalHabits
-    : 0;
+  // Watch for habit changes
+  $: {
+    healthScore = calculateHealthScore();
+    allHabitsChecked = habitStats.totalHabits > 0 && habitStats.completedToday === habitStats.totalHabits;
+
+    // Auto-generate when all habits are checked for the first time today
+    const today = format(new Date(), 'yyyy-MM-dd');
+    if (allHabitsChecked && lastGeneratedDate !== today && !loading) {
+      generateShibaImage();
+    } else {
+      updateMessage();
+    }
+  }
 </script>
 
 <div class="motivational-character">
   <div class="character-header">
-    <h3>Your Coach</h3>
+    <h3>Your Shiba 🐕</h3>
     <div class="stats">
       <span class="stat">
         <span class="stat-value">{habitStats.completedToday}/{habitStats.totalHabits}</span>
         <span class="stat-label">Today</span>
       </span>
       <span class="stat">
-        <span class="stat-value">{habitStats.currentStreak}</span>
-        <span class="stat-label">Streak</span>
+        <span class="stat-value">{Math.round(healthScore)}%</span>
+        <span class="stat-label">Health</span>
       </span>
     </div>
   </div>
@@ -107,19 +197,19 @@
     {#if loading}
       <div class="loading-state">
         <div class="loader"></div>
-        <p>Generating motivation...</p>
+        <p>Checking on your Shiba...</p>
       </div>
     {:else if imageUrl}
       <div class="character-image">
-        <img src={imageUrl} alt="Motivational character" />
+        <img src={imageUrl} alt="Your Shiba Inu" />
       </div>
     {:else if error}
       <div class="placeholder-character">
-        <span class="emoji">💪</span>
+        <span class="emoji">🐕</span>
       </div>
     {:else}
       <div class="placeholder-character">
-        <span class="emoji">🌟</span>
+        <span class="emoji">🐕</span>
       </div>
     {/if}
   </div>
@@ -131,8 +221,8 @@
     {/if}
   </div>
 
-  <button class="regenerate-btn" on:click={generateMotivation} disabled={loading}>
-    {loading ? '⏳' : '🔄'} New Motivation
+  <button class="regenerate-btn" on:click={() => generateShibaImage(true)} disabled={loading}>
+    {loading ? '⏳' : '🐾'} Check on Shiba
   </button>
 </div>
 

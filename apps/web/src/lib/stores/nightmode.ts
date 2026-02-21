@@ -144,19 +144,51 @@ export function temporarilyDisableDim(minutes?: number) {
 }
 
 export function manuallyEnableDim() {
-  // Enable dim mode by setting manuallyEnabled to true (not serverEnabled)
+  const currentState = get(nightModeState);
+
+  // If in scheduled night mode hours, just clear the temporary disable
+  if (currentState.serverEnabled) {
+    nightModeState.update(state => ({
+      ...state,
+      temporarilyDisabled: false,
+      disableUntil: null,
+    }));
+
+    if (disableTimer) {
+      clearTimeout(disableTimer);
+      disableTimer = null;
+    }
+    return;
+  }
+
+  // Not in scheduled hours - manually enable with 10-minute timeout
+  const MANUAL_TIMEOUT_MINUTES = 10;
+  const disableUntil = Date.now() + MANUAL_TIMEOUT_MINUTES * 60 * 1000;
+
   nightModeState.update(state => ({
     ...state,
     manuallyEnabled: true,
     temporarilyDisabled: false,
-    disableUntil: null,
+    disableUntil,
   }));
 
   // Clear any existing timer
   if (disableTimer) {
     clearTimeout(disableTimer);
-    disableTimer = null;
   }
+
+  // Set up auto-disable after 10 minutes
+  disableTimer = setTimeout(() => {
+    const state = get(nightModeState);
+    // Only disable if still manually enabled (not entered scheduled night mode)
+    if (state.manuallyEnabled && !state.serverEnabled) {
+      nightModeState.update(s => ({
+        ...s,
+        manuallyEnabled: false,
+        disableUntil: null,
+      }));
+    }
+  }, MANUAL_TIMEOUT_MINUTES * 60 * 1000);
 }
 
 // Listen for night mode updates from server
