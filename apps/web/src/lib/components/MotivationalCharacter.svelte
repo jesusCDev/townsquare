@@ -82,19 +82,19 @@
       if (healthScore >= 80) {
         mood = 'thriving';
         message = "Your Shiba is thriving! Keep it up! 🐕✨";
-        prompt = "A happy, healthy Shiba Inu dog sitting proudly, bright eyes, fluffy clean coat, wagging tail, cheerful expression, sunny background, vibrant colors, warm lighting, digital art, cute, high quality";
+        prompt = "A joyful happy Shiba Inu dog sitting proudly, sparkling bright eyes, fluffy ultra clean golden coat, wagging tail, big cheerful smile, pastel pink and blue sky background, vibrant rainbow colors, glowing warm sunlight, kawaii aesthetic, digital art, cute, adorable, high quality";
       } else if (healthScore >= 60) {
         mood = 'healthy';
         message = "Your Shiba is doing well! 🐕💚";
-        prompt = "A content Shiba Inu dog sitting calmly, alert eyes, well-groomed coat, neutral happy expression, pleasant background, natural colors, soft lighting, digital art, cute";
+        prompt = "A content cheerful Shiba Inu dog sitting calmly, bright alert eyes, well-groomed shiny coat, gentle happy expression, pastel green and yellow background, soft vibrant colors, warm pleasant lighting, kawaii style, digital art, cute and healthy";
       } else if (healthScore >= 40) {
         mood = 'needs_care';
         message = "Your Shiba needs more attention... 🐕💛";
-        prompt = "A tired Shiba Inu dog sitting with slightly droopy ears, looking up hopefully, coat a bit messy, gentle sad eyes, muted colors, cloudy background, digital art, cute but needs care";
+        prompt = "A tired but hopeful Shiba Inu dog sitting with slightly droopy ears, gentle pleading eyes, coat a bit messy but still cute, pastel lavender and peach background, soft muted but warm colors, gentle lighting, kawaii aesthetic, digital art, needs care but still adorable";
       } else {
         mood = 'neglected';
         message = "Your Shiba is feeling neglected... 🐕💔";
-        prompt = "A sad Shiba Inu dog sitting alone with droopy ears and tail, tired eyes, disheveled coat, looking down, dark muted colors, gloomy background, digital art, needs love and care";
+        prompt = "A sad lonely Shiba Inu dog sitting with droopy ears and tail down, gentle tired eyes, slightly disheveled coat, looking down sadly, pastel grey and soft blue background, muted pastel colors, dim soft lighting, kawaii style, digital art, needs love and care but still cute";
       }
 
       const response = await fetch('/api/motivation/generate', {
@@ -179,51 +179,27 @@
 </script>
 
 <div class="motivational-character">
-  <div class="character-header">
-    <h3>Your Shiba 🐕</h3>
-    <div class="stats">
-      <span class="stat">
-        <span class="stat-value">{habitStats.completedToday}/{habitStats.totalHabits}</span>
-        <span class="stat-label">Today</span>
-      </span>
-      <span class="stat">
-        <span class="stat-value">{Math.round(healthScore)}%</span>
-        <span class="stat-label">Health</span>
-      </span>
+  {#if loading}
+    <div class="loading-state">
+      <div class="loader"></div>
+      <p>Checking on your Shiba...</p>
     </div>
-  </div>
-
-  <div class="character-display">
-    {#if loading}
-      <div class="loading-state">
-        <div class="loader"></div>
-        <p>Checking on your Shiba...</p>
-      </div>
-    {:else if imageUrl}
-      <div class="character-image">
-        <img src={imageUrl} alt="Your Shiba Inu" />
-      </div>
-    {:else if error}
-      <div class="placeholder-character">
-        <span class="emoji">🐕</span>
-      </div>
-    {:else}
-      <div class="placeholder-character">
-        <span class="emoji">🐕</span>
-      </div>
-    {/if}
-  </div>
-
-  <div class="message">
-    <p>{$scrambleMode ? scrambleText(message) : message}</p>
-    {#if error && error.includes('API key')}
-      <a href="/admin" class="settings-link">Go to Settings →</a>
-    {/if}
-  </div>
-
-  <button class="regenerate-btn" on:click={() => generateShibaImage(true)} disabled={loading}>
-    {loading ? '⏳' : '🐾'} Check on Shiba
-  </button>
+  {:else if imageUrl}
+    <div class="character-image-full">
+      <img src={imageUrl} alt="Your Shiba Inu reflecting your habit progress" />
+    </div>
+  {:else if error}
+    <div class="placeholder-character-full">
+      <span class="emoji-large">🐕</span>
+      {#if error.includes('API key')}
+        <a href="/admin" class="settings-link-center">Add API Key in Settings →</a>
+      {/if}
+    </div>
+  {:else}
+    <div class="placeholder-character-full">
+      <span class="emoji-large">🐕</span>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -237,92 +213,65 @@
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 16px;
-    padding: 1rem;
+    padding: 0.5rem;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
                 inset 0 1px 0 rgba(255, 255, 255, 0.05);
     height: 100%;
     display: flex;
-    flex-direction: column;
-    gap: 1rem;
+    align-items: center;
+    justify-content: center;
     position: relative;
     overflow: hidden;
   }
 
-  .motivational-character::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(147, 51, 234, 0.3) 50%,
-      transparent 100%
-    );
-  }
-
-  .character-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  h3 {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.8);
-    margin: 0;
-  }
-
-  .stats {
-    display: flex;
-    gap: 0.75rem;
-  }
-
-  .stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.1rem;
-  }
-
-  .stat-value {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: #9333ea;
-  }
-
-  .stat-label {
-    font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.4);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .character-display {
-    flex: 1;
+  .character-image-full {
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 200px;
-    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .character-image-full img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 12px;
+  }
+
+  .placeholder-character-full {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    gap: 1rem;
+  }
+
+  .emoji-large {
+    font-size: 8rem;
+    opacity: 0.6;
+    filter: drop-shadow(0 0 30px rgba(147, 51, 234, 0.4));
   }
 
   .loading-state {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.75rem;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    gap: 1rem;
     color: rgba(255, 255, 255, 0.4);
   }
 
   .loader {
-    width: 32px;
-    height: 32px;
-    border: 3px solid rgba(147, 51, 234, 0.2);
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(147, 51, 234, 0.2);
     border-top-color: #9333ea;
     border-radius: 50%;
     animation: spin 1s linear infinite;
@@ -333,92 +282,22 @@
   }
 
   .loading-state p {
-    font-size: 0.75rem;
-    margin: 0;
-  }
-
-  .character-image {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 12px;
-    overflow: hidden;
-  }
-
-  .character-image img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-    border-radius: 8px;
-  }
-
-  .placeholder-character {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-  }
-
-  .emoji {
-    font-size: 4rem;
-    opacity: 0.6;
-    filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3));
-  }
-
-  .message {
-    background: rgba(147, 51, 234, 0.08);
-    border: 1px solid rgba(147, 51, 234, 0.2);
-    border-radius: 10px;
-    padding: 0.75rem;
-    text-align: center;
-  }
-
-  .message p {
-    margin: 0;
     font-size: 0.85rem;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.9);
-    line-height: 1.4;
+    margin: 0;
   }
 
-  .settings-link {
+  .settings-link-center {
     display: inline-block;
-    margin-top: 0.5rem;
-    font-size: 0.75rem;
+    margin-top: 1rem;
+    font-size: 0.85rem;
     color: #9333ea;
     text-decoration: none;
     font-weight: 600;
     transition: color 0.2s ease;
   }
 
-  .settings-link:hover {
+  .settings-link-center:hover {
     color: #a855f7;
     text-decoration: underline;
-  }
-
-  .regenerate-btn {
-    background: linear-gradient(135deg, rgba(147, 51, 234, 0.15), rgba(168, 85, 247, 0.15));
-    border: 1px solid rgba(147, 51, 234, 0.3);
-    border-radius: 8px;
-    padding: 0.6rem 1rem;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.8);
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .regenerate-btn:hover:not(:disabled) {
-    background: linear-gradient(135deg, rgba(147, 51, 234, 0.25), rgba(168, 85, 247, 0.25));
-    border-color: rgba(147, 51, 234, 0.5);
-    transform: translateY(-1px);
-  }
-
-  .regenerate-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 </style>
