@@ -241,16 +241,9 @@
   <!-- Dynamic Sections based on sectionOrder -->
   {#each sectionOrder as section, index}
     {#if section === 'habits'}
-      <!-- Habit Tracker + Motivational Character (80/20 split) -->
-      <div class="habit-section animate-in animate-in-{index + 2}" class:full-width={!showMotivationalCharacter}>
-        <div class="habit-main" class:full-width={!showMotivationalCharacter}>
-          <HabitTracker />
-        </div>
-        {#if showMotivationalCharacter}
-          <div class="motivational-sidebar">
-            <MotivationalCharacter {habitStats} />
-          </div>
-        {/if}
+      <!-- Habit Tracker (Full Width) -->
+      <div class="habit-section animate-in animate-in-{index + 2}">
+        <HabitTracker />
       </div>
     {:else if section === 'timeline'}
       <!-- Timeline -->
@@ -258,17 +251,22 @@
         <Timeline />
       </div>
     {:else if section === 'tiles'}
-      <!-- Info Tiles Row -->
-      {#if showCountdownTile || showDaysWonTile}
+      <!-- Info Tiles Row: Shiba (1/4) + Countdown (1/4) + Days Won (2/4) -->
+      {#if showMotivationalCharacter || showCountdownTile || showDaysWonTile}
         <div class="tiles-row animate-in animate-in-{index + 2}">
-          {#if showDaysWonTile}
-            <div class="tile-half">
-              <DaysWonTile />
+          {#if showMotivationalCharacter}
+            <div class="tile-quarter">
+              <MotivationalCharacter {habitStats} />
             </div>
           {/if}
           {#if showCountdownTile}
-            <div class="tile-half">
+            <div class="tile-quarter">
               <CountdownTile />
+            </div>
+          {/if}
+          {#if showDaysWonTile}
+            <div class="tile-half">
+              <DaysWonTile />
             </div>
           {/if}
         </div>
@@ -306,27 +304,6 @@
   .habit-section {
     flex: 0 1 auto;
     min-height: 0;
-    display: flex;
-    gap: 1rem;
-  }
-
-  .habit-section.full-width {
-    display: block;
-  }
-
-  .habit-main {
-    flex: 0 1 80%;
-    overflow-y: auto;
-    min-height: 0;
-  }
-
-  .habit-main.full-width {
-    flex: 1 1 100%;
-  }
-
-  .motivational-sidebar {
-    flex: 0 1 20%;
-    min-width: 280px;
     overflow-y: auto;
   }
 
@@ -337,20 +314,21 @@
   .tiles-row {
     flex-shrink: 0;
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 1rem;
     height: 200px;
+  }
+
+  .tile-quarter {
+    min-width: 0;
+    height: 100%;
+    grid-column: span 1;
   }
 
   .tile-half {
     min-width: 0;
     height: 100%;
-  }
-
-  /* Adjust layout when only one tile is visible */
-  .tiles-row:has(.tile-half:only-child) {
-    grid-template-columns: 1fr;
-    max-width: 50%;
+    grid-column: span 2;
   }
 
   .toast {
