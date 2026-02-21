@@ -14,20 +14,24 @@
   let loading = false;
   let error: string | null = null;
   let healthScore: number = 50; // 0-100 scale
-  let lastGeneratedDate: string | null = null;
-  let allHabitsChecked: boolean = false;
+  let currentMood: string = 'healthy';
+  let cachedImages: Record<string, { url: string; date: string }> = {};
 
-  // Load from localStorage
+  // Load cached images from localStorage
   if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem('shibaState');
+    // Clear old storage format
+    const oldStorage = localStorage.getItem('shibaState');
+    if (oldStorage) {
+      console.log('Migrating from old Shiba storage format...');
+      localStorage.removeItem('shibaState');
+    }
+
+    const stored = localStorage.getItem('shibaCache');
     if (stored) {
       try {
-        const parsed = JSON.parse(stored);
-        imageUrl = parsed.imageUrl || null;
-        lastGeneratedDate = parsed.lastGeneratedDate || null;
-        healthScore = parsed.healthScore ?? 50;
+        cachedImages = JSON.parse(stored);
       } catch (e) {
-        console.error('Failed to load Shiba state:', e);
+        console.error('Failed to load Shiba cache:', e);
       }
     }
   }
@@ -48,27 +52,32 @@
     return Math.round(todayScore + streakScore + baseScore);
   }
 
+  function getMoodFromHealthScore(score: number): string {
+    if (score >= 80) return 'thriving';
+    if (score >= 60) return 'healthy';
+    if (score >= 40) return 'needs_care';
+    return 'neglected';
+  }
+
   async function generateShibaImage(forceGenerate = false) {
     if (loading) return;
 
     const today = format(new Date(), 'yyyy-MM-dd');
     healthScore = calculateHealthScore();
-    allHabitsChecked = habitStats.totalHabits > 0 && habitStats.completedToday === habitStats.totalHabits;
+    const mood = getMoodFromHealthScore(healthScore);
+    currentMood = mood;
 
-    // Only generate if:
-    // 1. Forced (manual button click)
-    // 2. All habits checked AND it's a new day
-    // 3. No image exists yet
-    if (!forceGenerate && imageUrl && lastGeneratedDate === today) {
-      console.log('Shiba already generated today');
+    // Check if we have a cached image for this mood from today
+    if (!forceGenerate && cachedImages[mood] && cachedImages[mood].date === today) {
+      console.log(`Using cached ${mood} Shiba from today`);
+      imageUrl = cachedImages[mood].url;
       updateMessage();
       return;
     }
 
-    if (!forceGenerate && !allHabitsChecked && imageUrl) {
-      console.log('Not all habits checked yet');
-      updateMessage();
-      return;
+    // If forcing regenerate, clear the cached image for this mood
+    if (forceGenerate && cachedImages[mood]) {
+      delete cachedImages[mood];
     }
 
     loading = true;
@@ -76,23 +85,18 @@
 
     try {
       let prompt: string;
-      let mood: string;
 
-      // Shiba Inu states based on health score
-      if (healthScore >= 80) {
-        mood = 'thriving';
+      // Shiba Inu states based on mood
+      if (mood === 'thriving') {
         message = "Your Shiba is thriving! Keep it up! 🐕✨";
         prompt = "A joyful happy Shiba Inu dog sitting proudly next to a full food bowl with kibble, sparkling bright eyes, fluffy ultra clean golden coat, wagging tail, big cheerful smile, colorful toys scattered around, cozy home setting, pastel pink and blue sky background, vibrant rainbow colors, glowing warm sunlight, kawaii aesthetic, digital art, cute, adorable, high quality";
-      } else if (healthScore >= 60) {
-        mood = 'healthy';
+      } else if (mood === 'healthy') {
         message = "Your Shiba is doing well! 🐕💚";
         prompt = "A content cheerful Shiba Inu dog sitting calmly beside a food bowl with some kibble, bright alert eyes, well-groomed shiny coat, gentle happy expression, simple comfortable home, pastel green and yellow background, soft vibrant colors, warm pleasant lighting, kawaii style, digital art, cute and healthy";
-      } else if (healthScore >= 40) {
-        mood = 'needs_care';
+      } else if (mood === 'needs_care') {
         message = "Your Shiba needs more attention... 🐕💛";
         prompt = "A tired but hopeful Shiba Inu dog sitting with slightly droopy ears next to a half-empty food bowl, gentle pleading eyes looking at viewer, coat a bit messy but still cute, sparse simple room, pastel lavender and peach background, soft muted but warm colors, gentle lighting, kawaii aesthetic, digital art, needs care but still adorable";
       } else {
-        mood = 'neglected';
         message = "Your Shiba is feeling neglected... 🐕💔";
         prompt = "A sad lonely Shiba Inu dog sitting behind shelter kennel bars with droopy ears and tail down, empty food bowl beside them, gentle tired eyes, slightly disheveled messy coat, looking down sadly through the bars, shelter setting with concrete floor, pastel grey and soft blue background, muted pastel colors, dim soft lighting, kawaii style, digital art, needs love and care but still cute, emotional";
       }
@@ -109,15 +113,16 @@
 
       const data = await response.json();
       imageUrl = data.imageUrl;
-      lastGeneratedDate = today;
 
-      // Save to localStorage
+      // Cache the image for this mood
+      cachedImages[mood] = {
+        url: imageUrl,
+        date: today
+      };
+
+      // Save cache to localStorage
       if (typeof window !== 'undefined') {
-        localStorage.setItem('shibaState', JSON.stringify({
-          imageUrl,
-          lastGeneratedDate,
-          healthScore
-        }));
+        localStorage.setItem('shibaCache', JSON.stringify(cachedImages));
       }
     } catch (err: any) {
       console.error('Failed to generate Shiba:', err);
@@ -136,41 +141,53 @@
 
   function updateMessage() {
     healthScore = calculateHealthScore();
+    const mood = getMoodFromHealthScore(healthScore);
+    currentMood = mood;
 
-    if (healthScore >= 80) {
+    if (mood === 'thriving') {
       message = "Your Shiba is thriving! Keep it up! 🐕✨";
-    } else if (healthScore >= 60) {
+    } else if (mood === 'healthy') {
       message = "Your Shiba is doing well! 🐕💚";
-    } else if (healthScore >= 40) {
+    } else if (mood === 'needs_care') {
       message = "Your Shiba needs more attention... 🐕💛";
     } else {
       message = "Your Shiba is feeling neglected... 🐕💔";
+    }
+
+    // Load cached image for current mood if available
+    const today = format(new Date(), 'yyyy-MM-dd');
+    if (cachedImages[mood] && cachedImages[mood].date === today) {
+      imageUrl = cachedImages[mood].url;
     }
   }
 
   onMount(() => {
     updateMessage();
 
-    // Check if we should generate (all habits checked today and it's a new day)
+    // Generate initial image if we don't have one for the current mood
     const today = format(new Date(), 'yyyy-MM-dd');
-    allHabitsChecked = habitStats.totalHabits > 0 && habitStats.completedToday === habitStats.totalHabits;
+    const mood = getMoodFromHealthScore(calculateHealthScore());
 
-    if (allHabitsChecked && lastGeneratedDate !== today) {
-      generateShibaImage();
-    } else if (!imageUrl) {
-      // No image yet, generate one
-      generateShibaImage();
+    if (!cachedImages[mood] || cachedImages[mood].date !== today) {
+      // Only auto-generate if all habits are checked
+      const allChecked = habitStats.totalHabits > 0 && habitStats.completedToday === habitStats.totalHabits;
+      if (allChecked) {
+        generateShibaImage();
+      }
     }
   });
 
   // Watch for habit changes
   $: {
     healthScore = calculateHealthScore();
-    allHabitsChecked = habitStats.totalHabits > 0 && habitStats.completedToday === habitStats.totalHabits;
+    const mood = getMoodFromHealthScore(healthScore);
+    currentMood = mood;
 
     // Auto-generate when all habits are checked for the first time today
     const today = format(new Date(), 'yyyy-MM-dd');
-    if (allHabitsChecked && lastGeneratedDate !== today && !loading) {
+    const allChecked = habitStats.totalHabits > 0 && habitStats.completedToday === habitStats.totalHabits;
+
+    if (allChecked && (!cachedImages[mood] || cachedImages[mood].date !== today) && !loading) {
       generateShibaImage();
     } else {
       updateMessage();
@@ -187,6 +204,9 @@
   {:else if imageUrl}
     <div class="character-image-full">
       <img src={imageUrl} alt="Your Shiba Inu reflecting your habit progress" />
+      <button class="regenerate-btn" on:click={() => generateShibaImage(true)} title="Generate new image">
+        🔄
+      </button>
     </div>
   {:else if error}
     <div class="placeholder-character-full">
@@ -232,6 +252,7 @@
     justify-content: center;
     border-radius: 12px;
     overflow: hidden;
+    position: relative;
   }
 
   .character-image-full img {
@@ -239,6 +260,44 @@
     height: 100%;
     object-fit: cover;
     border-radius: 12px;
+  }
+
+  .regenerate-btn {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(18, 18, 18, 0.85);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(147, 51, 234, 0.5);
+    color: #9333ea;
+    font-size: 1.3rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: scale(0.8);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  }
+
+  .character-image-full:hover .regenerate-btn {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .regenerate-btn:hover {
+    background: rgba(147, 51, 234, 0.2);
+    border-color: rgba(147, 51, 234, 0.8);
+    transform: scale(1.1) rotate(180deg);
+    box-shadow: 0 6px 16px rgba(147, 51, 234, 0.4);
+  }
+
+  .regenerate-btn:active {
+    transform: scale(0.95) rotate(180deg);
   }
 
   .placeholder-character-full {
