@@ -82,19 +82,19 @@
       if (healthScore >= 80) {
         mood = 'thriving';
         message = "Your Shiba is thriving! Keep it up! 🐕✨";
-        prompt = "A joyful happy Shiba Inu dog sitting proudly, sparkling bright eyes, fluffy ultra clean golden coat, wagging tail, big cheerful smile, pastel pink and blue sky background, vibrant rainbow colors, glowing warm sunlight, kawaii aesthetic, digital art, cute, adorable, high quality";
+        prompt = "A joyful happy Shiba Inu dog sitting proudly next to a full food bowl with kibble, sparkling bright eyes, fluffy ultra clean golden coat, wagging tail, big cheerful smile, colorful toys scattered around, cozy home setting, pastel pink and blue sky background, vibrant rainbow colors, glowing warm sunlight, kawaii aesthetic, digital art, cute, adorable, high quality";
       } else if (healthScore >= 60) {
         mood = 'healthy';
         message = "Your Shiba is doing well! 🐕💚";
-        prompt = "A content cheerful Shiba Inu dog sitting calmly, bright alert eyes, well-groomed shiny coat, gentle happy expression, pastel green and yellow background, soft vibrant colors, warm pleasant lighting, kawaii style, digital art, cute and healthy";
+        prompt = "A content cheerful Shiba Inu dog sitting calmly beside a food bowl with some kibble, bright alert eyes, well-groomed shiny coat, gentle happy expression, simple comfortable home, pastel green and yellow background, soft vibrant colors, warm pleasant lighting, kawaii style, digital art, cute and healthy";
       } else if (healthScore >= 40) {
         mood = 'needs_care';
         message = "Your Shiba needs more attention... 🐕💛";
-        prompt = "A tired but hopeful Shiba Inu dog sitting with slightly droopy ears, gentle pleading eyes, coat a bit messy but still cute, pastel lavender and peach background, soft muted but warm colors, gentle lighting, kawaii aesthetic, digital art, needs care but still adorable";
+        prompt = "A tired but hopeful Shiba Inu dog sitting with slightly droopy ears next to a half-empty food bowl, gentle pleading eyes looking at viewer, coat a bit messy but still cute, sparse simple room, pastel lavender and peach background, soft muted but warm colors, gentle lighting, kawaii aesthetic, digital art, needs care but still adorable";
       } else {
         mood = 'neglected';
         message = "Your Shiba is feeling neglected... 🐕💔";
-        prompt = "A sad lonely Shiba Inu dog sitting with droopy ears and tail down, gentle tired eyes, slightly disheveled coat, looking down sadly, pastel grey and soft blue background, muted pastel colors, dim soft lighting, kawaii style, digital art, needs love and care but still cute";
+        prompt = "A sad lonely Shiba Inu dog sitting behind shelter kennel bars with droopy ears and tail down, empty food bowl beside them, gentle tired eyes, slightly disheveled messy coat, looking down sadly through the bars, shelter setting with concrete floor, pastel grey and soft blue background, muted pastel colors, dim soft lighting, kawaii style, digital art, needs love and care but still cute, emotional";
       }
 
       const response = await fetch('/api/motivation/generate', {
