@@ -504,9 +504,9 @@
   type PreviewSlot = { name: string; icon: string; startTime: string; endTime: string; color: string; isAvailable: boolean; isNewBlock: boolean };
 
   // Helper to expand blocks - handles overnight blocks by splitting them
-  type ExpandedBlock = { name: string; icon: string; startMinutes: number; endMinutes: number; isExisting: boolean };
+  type ExpandedBlock = { name: string; icon: string; color: string; startMinutes: number; endMinutes: number; isExisting: boolean };
 
-  function expandBlock(block: { name: string; icon: string; startTime: string; endTime: string; isExisting: boolean }): ExpandedBlock[] {
+  function expandBlock(block: { name: string; icon: string; color: string; startTime: string; endTime: string; isExisting: boolean }): ExpandedBlock[] {
     const startMinutes = timeToMinutes(block.startTime);
     const endMinutes = block.endTime ? timeToMinutes(block.endTime) : 1440;
 
@@ -531,6 +531,7 @@
       .map(block => ({
         name: block.name,
         icon: block.icon || '',
+        color: block.color || '#3b82f6',
         startTime: block.startTime,
         endTime: block.endTime || '24:00',
         isExisting: true,
@@ -541,6 +542,7 @@
       rawBlocks.push({
         name: newBlockData.name || 'New Block',
         icon: newBlockData.icon || '➕',
+        color: newBlockData.color || '#3b82f6',
         startTime: newBlockData.startTime,
         endTime: newBlockData.endTime || '24:00',
         isExisting: false,
@@ -573,13 +575,13 @@
         });
       }
 
-      // Scheduled block (existing = red, new = blue)
+      // Scheduled block (use actual block color)
       preview.push({
         name: block.name,
         icon: block.icon,
         startTime: minutesToTime(block.startMinutes),
         endTime: minutesToTime(block.endMinutes),
-        color: block.isExisting ? '#ef4444' : '#3b82f6',
+        color: block.color,
         isAvailable: false,
         isNewBlock: !block.isExisting,
       });
@@ -1183,6 +1185,48 @@
                       {#if widthPercent > 12}
                         <span class="slot-label">{formatTimeStr(slot.startTime, $timeFormat)}</span>
                       {/if}
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+            <div class="preview-times">
+              <span>{formatTimeStr('00:00', $timeFormat)}</span>
+              <span>{formatTimeStr('06:00', $timeFormat)}</span>
+              <span>{formatTimeStr('12:00', $timeFormat)}</span>
+              <span>{formatTimeStr('18:00', $timeFormat)}</span>
+              <span>{$timeFormat === '12' ? '12:00 AM' : '24:00'}</span>
+            </div>
+          </div>
+
+          <!-- Detailed Schedule Preview with Colors -->
+          <div class="schedule-preview-detailed">
+            <label>Detailed Schedule View:</label>
+            {#each schedulePreviews as row}
+              <div class="preview-row-detailed">
+                <div class="preview-row-label">{row.label}</div>
+                <div class="preview-timeline-detailed">
+                  {#each row.slots as slot}
+                    {@const startMins = timeToMinutes(slot.startTime)}
+                    {@const endMins = slot.endTime === '24:00' ? 1440 : timeToMinutes(slot.endTime)}
+                    {@const widthPercent = ((endMins - startMins) / 1440) * 100}
+                    {@const isSmall = widthPercent < 8}
+                    <div
+                      class="preview-slot-detailed"
+                      class:available-detailed={slot.isAvailable}
+                      class:small-slot={isSmall}
+                      style="width: {widthPercent}%; background: {slot.isAvailable ? 'rgba(34, 197, 94, 0.15)' : slot.color}; border-color: {slot.isAvailable ? '#22c55e' : slot.color};"
+                      title="{slot.name}: {formatTimeStr(slot.startTime, $timeFormat)} - {formatTimeStr(slot.endTime, $timeFormat)}"
+                    >
+                      <div class="slot-content">
+                        {#if !isSmall}
+                          {#if slot.icon}
+                            <span class="slot-icon-detailed">{slot.icon}</span>
+                          {/if}
+                          <span class="slot-name">{slot.name}</span>
+                        {/if}
+                        <span class="slot-time">{formatTimeStr(slot.startTime, $timeFormat)}</span>
+                      </div>
                     </div>
                   {/each}
                 </div>
@@ -2351,6 +2395,101 @@
     font-size: 0.6rem;
     color: var(--text-tertiary);
     font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Detailed Schedule Preview with Colors */
+  .schedule-preview-detailed {
+    margin-top: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0.5rem;
+  }
+
+  .schedule-preview-detailed > label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+  }
+
+  .preview-row-detailed {
+    margin-bottom: 1rem;
+  }
+
+  .preview-timeline-detailed {
+    display: flex;
+    height: 48px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .preview-slot-detailed {
+    display: flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    height: 100%;
+    border-right: 2px solid rgba(0, 0, 0, 0.5);
+    transition: all 0.2s;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .preview-slot-detailed:last-child {
+    border-right: none;
+  }
+
+  .preview-slot-detailed.available-detailed {
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px dashed #22c55e;
+  }
+
+  .preview-slot-detailed.small-slot {
+    padding: 0.25rem 0.2rem;
+  }
+
+  .preview-slot-detailed:hover {
+    filter: brightness(1.2);
+    z-index: 1;
+  }
+
+  .slot-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    width: 100%;
+    gap: 0.1rem;
+  }
+
+  .slot-icon-detailed {
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    margin-bottom: 0.1rem;
+  }
+
+  .slot-name {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+  }
+
+  .slot-time {
+    font-size: 0.6rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.75);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
   }
 
   .day-btn {
