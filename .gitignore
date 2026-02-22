@@ -51,6 +51,7 @@ temp
 
 # Pi-specific scripts
 open.sh
+deploy.sh
 
 # Service file (use .example as template)
 townsquare.service
