@@ -64,9 +64,11 @@
     bottom: 0;
     background: linear-gradient(
       135deg,
-      rgba(0, 0, 0, 0.85) 0%,
-      rgba(5, 5, 20, 0.9) 100%
+      rgba(0, 0, 0, 0.95) 0%,
+      rgba(5, 5, 20, 0.97) 100%
     );
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
