@@ -199,10 +199,28 @@
     }
   }
 
+  // Auto-hide cursor after 5 minutes of inactivity
+  let hideCursor = false;
+  let cursorTimeout: ReturnType<typeof setTimeout>;
+
+  function resetCursorTimeout() {
+    hideCursor = false;
+    clearTimeout(cursorTimeout);
+    cursorTimeout = setTimeout(() => {
+      hideCursor = true;
+    }, 5 * 60 * 1000); // 5 minutes
+  }
+
   onMount(() => {
     if (typeof window !== 'undefined') {
       // Add our handler in capture phase so it runs before the nightmode store's handler
       window.addEventListener('keydown', handleKeydown, true);
+
+      // Auto-hide cursor setup
+      window.addEventListener('mousemove', resetCursorTimeout);
+      window.addEventListener('mousedown', resetCursorTimeout);
+      window.addEventListener('keydown', resetCursorTimeout);
+      resetCursorTimeout(); // Start the timer
     }
     loadTileSettings();
 
@@ -224,6 +242,9 @@
   onDestroy(() => {
     if (typeof window !== 'undefined') {
       window.removeEventListener('keydown', handleKeydown, true);
+      window.removeEventListener('mousemove', resetCursorTimeout);
+      window.removeEventListener('mousedown', resetCursorTimeout);
+      clearTimeout(cursorTimeout);
     }
   });
 </script>
@@ -232,7 +253,7 @@
   <title>LifeBoard</title>
 </svelte:head>
 
-<div class="dashboard">
+<div class="dashboard" class:hide-cursor={hideCursor}>
   <!-- Header -->
   <div class="header-section animate-in animate-in-1">
     <Header />
@@ -295,6 +316,11 @@
     gap: 1rem;
     overflow: hidden;
     box-sizing: border-box;
+  }
+
+  .dashboard.hide-cursor,
+  .dashboard.hide-cursor * {
+    cursor: none !important;
   }
 
   .header-section {

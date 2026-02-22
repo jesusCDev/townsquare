@@ -150,9 +150,9 @@
   let periodPart = '';
 </script>
 
-<div class="header glass">
+<div class="header glass" class:dim-mode-active={$nightModeInfo.isActive}>
   <!-- Left section: System info -->
-  <div class="left-section">
+  <div class="left-section" class:hidden-in-dim={$nightModeInfo.isActive}>
     <div class="status-item">
       <span class="status-dot" class:connected={$isConnected} class:disconnected={!$isConnected}></span>
       <span>{$isConnected ? 'Connected' : 'Disconnected'}</span>
@@ -184,7 +184,7 @@
 
   <!-- Center section: Clock -->
   <div class="center-section">
-    <div class="date">{dateStr}</div>
+    <div class="date" class:hidden-in-dim={$nightModeInfo.isActive}>{dateStr}</div>
     {#if $nightModeInfo.isActive}
       <div class="time-container dim-mode">
         <span class="time-main font-mono">{timePart}</span>
@@ -195,7 +195,7 @@
     {:else}
       <div class="time font-mono">{timeStr}</div>
     {/if}
-    {#if nextAlert}
+    {#if nextAlert && !$nightModeInfo.isActive}
       <div class="next-alert">
         <span class="alert-icon">⏰</span>
         {$scrambleMode ? scrambleText(nextAlert.name) : nextAlert.name} at {nextAlert.time}
@@ -207,7 +207,7 @@
   </div>
 
   <!-- Right section: Settings -->
-  <div class="right-section">
+  <div class="right-section" class:hidden-in-dim={$nightModeInfo.isActive}>
     {#if $blurModeInfo.enabled}
       <div class="blur-timer" title="Blur mode will auto-disable in {blurMinutesRemaining} minutes">
         <span class="blur-icon">👁️</span>
@@ -233,6 +233,28 @@
     font-size: 0.8rem;
     gap: 2rem;
     position: relative;
+    transition: all 0.5s ease;
+  }
+
+  .header.dim-mode-active {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    z-index: 9999;
+  }
+
+  .hidden-in-dim {
+    display: none !important;
   }
 
   .header::before {
@@ -393,25 +415,25 @@
   }
 
   .time-main {
-    font-size: clamp(8rem, 20vw, 24rem);
+    font-size: clamp(16rem, 40vw, 48rem);
     font-weight: 200;
     color: rgba(103, 254, 153, 1);
     letter-spacing: -0.02em;
     line-height: 1;
-    text-shadow: 0 0 60px rgba(103, 254, 153, 0.8),
-                 0 0 120px rgba(103, 254, 153, 0.4);
+    text-shadow: 0 0 80px rgba(103, 254, 153, 0.8),
+                 0 0 160px rgba(103, 254, 153, 0.4);
   }
 
   .time-period {
-    font-size: clamp(3rem, 7vw, 8rem);
+    font-size: clamp(6rem, 14vw, 16rem);
     font-weight: 300;
     color: rgba(103, 254, 153, 0.8);
     letter-spacing: 0.05em;
     line-height: 1;
-    text-shadow: 0 0 40px rgba(103, 254, 153, 0.6),
-                 0 0 80px rgba(103, 254, 153, 0.3);
+    text-shadow: 0 0 60px rgba(103, 254, 153, 0.6),
+                 0 0 120px rgba(103, 254, 153, 0.3);
     align-self: flex-end;
-    padding-bottom: clamp(0.5rem, 2vw, 2rem);
+    padding-bottom: clamp(1rem, 4vw, 4rem);
   }
 
   .next-alert {

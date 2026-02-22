@@ -279,14 +279,28 @@
   function formatTimeRemaining(block: any): string {
     if (!block || !block.endTime) return '';
     const minutes = currentTime.getHours() * 60 + currentTime.getMinutes();
-    const end = timeToMinutes(block.endTime);
-    const remaining = end - minutes;
-    
+    const start = timeToMinutes(block.startTime);
+    let end = timeToMinutes(block.endTime);
+
+    // Handle overnight blocks (e.g., 8pm-4am)
+    // If end < start, it means the block crosses midnight
+    if (end < start) {
+      end += 1440; // Add 24 hours to end time
+    }
+
+    let remaining = end - minutes;
+
+    // If we're past midnight but the block continues into next day
+    if (remaining < 0 && end > 1440) {
+      // We're in the early morning hours of the next day
+      remaining = end - 1440 - minutes;
+    }
+
     if (remaining <= 0) return '';
-    
+
     const hours = Math.floor(remaining / 60);
     const mins = remaining % 60;
-    
+
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   }
 
