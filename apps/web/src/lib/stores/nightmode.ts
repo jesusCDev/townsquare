@@ -61,6 +61,7 @@ export const nightMode = derived(nightModeState, ($state) =>
 if (typeof window !== 'undefined') {
   // Save to localStorage whenever state changes
   nightModeState.subscribe(state => {
+    console.log('[DIM] state changed:', JSON.stringify(state), '→ active:', (state.serverEnabled || state.manuallyEnabled) && !state.temporarilyDisabled);
     localStorage.setItem('nightModeState', JSON.stringify(state));
   });
 
@@ -93,6 +94,7 @@ let disableTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function temporarilyDisableDim(minutes?: number) {
   const currentState = get(nightModeState);
+  console.log('[DIM] temporarilyDisableDim called, state:', JSON.stringify(currentState));
 
   // If only manually enabled (not in scheduled night mode hours), just disable without timeout
   if (!currentState.serverEnabled && currentState.manuallyEnabled) {
@@ -153,6 +155,7 @@ export function temporarilyDisableDim(minutes?: number) {
 
 export function manuallyEnableDim() {
   const currentState = get(nightModeState);
+  console.log('[DIM] manuallyEnableDim called, state:', JSON.stringify(currentState));
 
   // If in scheduled night mode hours, just clear the temporary disable
   if (currentState.serverEnabled) {
@@ -273,6 +276,7 @@ if (typeof window !== 'undefined') {
       // Only auto-disable on interaction during SCHEDULED night mode (not manual)
       // Manual dim should only be controlled by explicit user action
       if (state.serverEnabled && !state.temporarilyDisabled) {
+        console.log('[DIM] auto-disable triggered by interaction');
         temporarilyDisableDim();
       }
     }, 300);

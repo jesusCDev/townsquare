@@ -70,6 +70,7 @@
     if (event.key === 'd' || event.key === 'D') {
       event.preventDefault();
       event.stopPropagation();
+      console.log('[DIM] D key pressed, isActive:', $nightModeInfo.isActive);
 
       if ($nightModeInfo.isActive) {
         temporarilyDisableDim();
@@ -366,6 +367,7 @@
           class="header-icon-btn"
           class:active={$nightModeInfo.isActive}
           on:click|stopPropagation={() => {
+            console.log('[DIM] button clicked, isActive:', $nightModeInfo.isActive);
             if ($nightModeInfo.isActive) {
               temporarilyDisableDim();
               showNotification('Dim mode disabled');
