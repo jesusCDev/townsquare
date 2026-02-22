@@ -452,6 +452,8 @@
   }
 
   .mobile-header {
+    position: relative;
+    z-index: 10000;
     padding: 1rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     background: rgba(18, 18, 18, 0.95);
