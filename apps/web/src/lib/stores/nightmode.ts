@@ -107,6 +107,10 @@ export function temporarilyDisableDim(minutes?: number) {
       clearTimeout(disableTimer);
       disableTimer = null;
     }
+
+    // Broadcast to other clients
+    const $socket = get(socket);
+    $socket?.emit('nightmode:manual', { enabled: false });
     return;
   }
 
@@ -120,6 +124,10 @@ export function temporarilyDisableDim(minutes?: number) {
     temporarilyDisabled: true,
     disableUntil,
   }));
+
+  // Broadcast to other clients
+  const $socket = get(socket);
+  $socket?.emit('nightmode:manual', { enabled: false });
 
   if (disableTimer) clearTimeout(disableTimer);
 
@@ -158,6 +166,10 @@ export function manuallyEnableDim() {
       clearTimeout(disableTimer);
       disableTimer = null;
     }
+
+    // Broadcast to other clients
+    const $socket = get(socket);
+    $socket?.emit('nightmode:manual', { enabled: true });
     return;
   }
 
@@ -171,6 +183,10 @@ export function manuallyEnableDim() {
     temporarilyDisabled: false,
     disableUntil,
   }));
+
+  // Broadcast to other clients
+  const $socket = get(socket);
+  $socket?.emit('nightmode:manual', { enabled: true });
 
   // Clear any existing timer
   if (disableTimer) {
@@ -191,14 +207,35 @@ export function manuallyEnableDim() {
   }, MANUAL_TIMEOUT_MINUTES * 60 * 1000);
 }
 
-// Listen for night mode updates from server
+// Listen for night mode updates from server and other clients
 socket.subscribe(($socket) => {
   if ($socket) {
+    $socket.off('nightmode:toggle');
+    $socket.off('nightmode:manual');
+
     $socket.on('nightmode:toggle', (data: { enabled: boolean }) => {
       nightModeState.update(state => ({
         ...state,
         serverEnabled: data.enabled,
       }));
+    });
+
+    // Listen for manual dim toggles from other clients
+    $socket.on('nightmode:manual', (data: { enabled: boolean }) => {
+      if (data.enabled) {
+        nightModeState.update(state => ({
+          ...state,
+          manuallyEnabled: true,
+          temporarilyDisabled: false,
+        }));
+      } else {
+        nightModeState.update(state => ({
+          ...state,
+          manuallyEnabled: false,
+          temporarilyDisabled: false,
+          disableUntil: null,
+        }));
+      }
     });
   }
 });
