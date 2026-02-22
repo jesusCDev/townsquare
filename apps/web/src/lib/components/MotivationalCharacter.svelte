@@ -202,9 +202,9 @@
       <p>Checking on your Shiba...</p>
     </div>
   {:else if imageUrl}
-    <div class="character-image-full">
+    <div class="character-image-full" on:click={() => generateShibaImage(true)} role="button" tabindex="0" title="Click to regenerate Shiba image">
       <img src={imageUrl} alt="Your Shiba Inu reflecting your habit progress" />
-      <button class="regenerate-btn" on:click={() => generateShibaImage(true)} title="Generate new image">
+      <button class="regenerate-btn" on:click|stopPropagation={() => generateShibaImage(true)} title="Generate new image">
         🔄
       </button>
     </div>
@@ -253,6 +253,16 @@
     border-radius: 12px;
     overflow: hidden;
     position: relative;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+  }
+
+  .character-image-full:hover {
+    transform: scale(1.02);
+  }
+
+  .character-image-full:active {
+    transform: scale(0.98);
   }
 
   .character-image-full img {
