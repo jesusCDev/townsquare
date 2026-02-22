@@ -4,6 +4,7 @@
   import { format } from 'date-fns';
   import { timeFormat, formatTime } from '$lib/stores/timeFormat';
   import { scrambleMode, scrambleText } from '$lib/stores/scramble';
+  import { playScheduleTransition } from '$lib/stores/sounds';
 
   let currentTime = new Date();
   let interval: ReturnType<typeof setInterval>;
@@ -27,6 +28,10 @@
       
       if (currentId !== previousBlockId) {
         console.log('[Timeline] Block changed from', previousBlockId, 'to', currentId);
+        // Play chime on block transition (skip initial load)
+        if (previousBlockId !== null) {
+          playScheduleTransition();
+        }
         previousBlockId = currentId;
       }
     }, 1000);

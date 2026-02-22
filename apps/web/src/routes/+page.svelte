@@ -13,6 +13,7 @@
   import { triggerDismissAlert } from '$lib/stores/alertActions';
   import { toggleBlurMode } from '$lib/stores/blurmode';
   import { scrambleMode, toggleScramble } from '$lib/stores/scramble';
+  import { playHabitComplete, playHabitReset } from '$lib/stores/sounds';
   import { socket } from '$lib/stores/socket';
 
   // Habit stats for motivational character
@@ -30,37 +31,56 @@
     let completedCount = 0;
 
     try {
-      // Fetch entries for each habit
-      const results = await Promise.all(
+      // Fetch 30 days of entries for each habit (for streak calculation)
+      const allEntries = await Promise.all(
         $habits.map(async (habit) => {
           try {
-            const res = await fetch(`/api/habits/${habit.id}/entries?days=2`);
+            const res = await fetch(`/api/habits/${habit.id}/entries?days=30`);
             const data = await res.json();
-            const entries = data.entries || data || [];
-            const todayEntry = entries.find((e: any) => e.date === today);
-
-            // Debug log
-            console.log(`Habit: ${habit.name}, Today: ${today}, Entry:`, todayEntry);
-
-            // Check if completed today (count must meet or exceed target)
-            const isComplete = todayEntry && todayEntry.count >= habit.targetCount;
-            return isComplete ? 1 : 0;
+            return { habit, entries: data.entries || data || [] };
           } catch (err) {
             console.error(`Failed to fetch entries for habit ${habit.name}:`, err);
-            return 0;
+            return { habit, entries: [] };
           }
         })
       );
 
-      completedCount = results.reduce((sum, val) => sum + val, 0);
+      // Count today's completions
+      for (const { habit, entries } of allEntries) {
+        const todayEntry = entries.find((e: any) => e.date === today);
+        if (todayEntry && todayEntry.count >= habit.targetCount) {
+          completedCount++;
+        }
+      }
+
+      // Calculate streak: consecutive days (working backwards from today) where ALL habits were completed
+      let streak = 0;
+      const checkDate = new Date();
+      for (let d = 0; d < 30; d++) {
+        const dateStr = format(checkDate, 'yyyy-MM-dd');
+        const allComplete = allEntries.every(({ habit, entries }) => {
+          const entry = entries.find((e: any) => e.date === dateStr);
+          return entry && entry.count >= habit.targetCount;
+        });
+
+        if (allComplete) {
+          streak++;
+        } else {
+          // If today isn't complete yet, skip it and check yesterday onwards
+          if (d === 0) {
+            checkDate.setDate(checkDate.getDate() - 1);
+            continue;
+          }
+          break;
+        }
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
 
       habitStats = {
         totalHabits: $habits.length,
         completedToday: completedCount,
-        currentStreak: 0 // Could calculate this later
+        currentStreak: streak,
       };
-
-      console.log('Habit stats updated:', habitStats);
     } catch (error) {
       console.error('Failed to load habit stats:', error);
       habitStats = { totalHabits: $habits.length, completedToday: 0, currentStreak: 0 };
@@ -126,6 +146,7 @@
       if (newCount === 0) {
         // Delete entry to reset
         await fetch(`/api/habits/${habit.id}/entries/${dateStr}`, { method: 'DELETE' });
+        playHabitReset();
         showNotification(`${habit.icon || '▪'} ${habit.name} reset`);
       } else {
         // Complete/increment
@@ -134,6 +155,9 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ date: dateStr }),
         });
+        if (newCount >= habit.targetCount) {
+          playHabitComplete();
+        }
         const status = newCount >= habit.targetCount ? 'complete!' : `${newCount}/${habit.targetCount}`;
         showNotification(`${habit.icon || '▪'} ${habit.name} ${status}`);
       }

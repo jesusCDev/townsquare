@@ -9,6 +9,9 @@
     currentStreak: 0
   };
 
+  // Track previous completedToday to detect new completions
+  let prevCompletedToday = 0;
+
   let imageUrl: string | null = null;
   let message: string = '';
   let loading = false;
@@ -16,6 +19,32 @@
   let healthScore: number = 50; // 0-100 scale
   let currentMood: string = 'healthy';
   let cachedImages: Record<string, { url: string; date: string }> = {};
+
+  // Reaction overlay state
+  let reactionText = '';
+  let showReaction = false;
+  let reactionTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  function triggerReaction(completed: number, total: number) {
+    if (total === 0) return;
+
+    const ratio = completed / total;
+    if (completed === total) {
+      reactionText = 'Perfect day! 🎉';
+    } else if (ratio >= 0.75) {
+      reactionText = 'So close! ✨';
+    } else if (ratio >= 0.5) {
+      reactionText = 'Keep going! 💪';
+    } else {
+      reactionText = 'Nice! 🐾';
+    }
+
+    showReaction = true;
+    if (reactionTimeout) clearTimeout(reactionTimeout);
+    reactionTimeout = setTimeout(() => {
+      showReaction = false;
+    }, 2500);
+  }
 
   // Load cached images from localStorage
   if (typeof window !== 'undefined') {
@@ -196,6 +225,12 @@
     const mood = getMoodFromHealthScore(healthScore);
     currentMood = mood;
 
+    // Detect new habit completions and trigger reaction
+    if (habitStats.completedToday > prevCompletedToday && prevCompletedToday >= 0) {
+      triggerReaction(habitStats.completedToday, habitStats.totalHabits);
+    }
+    prevCompletedToday = habitStats.completedToday;
+
     // Auto-generate when all habits are checked for the first time today
     const today = format(new Date(), 'yyyy-MM-dd');
     const allChecked = habitStats.totalHabits > 0 && habitStats.completedToday === habitStats.totalHabits;
@@ -233,6 +268,9 @@
       title="Click to regenerate Shiba image"
     >
       <img src={imageUrl} alt="Your Shiba Inu reflecting your habit progress" />
+      {#if showReaction}
+        <div class="reaction-bubble">{reactionText}</div>
+      {/if}
       <button
         class="regenerate-btn"
         on:click|stopPropagation={() => {
@@ -254,6 +292,9 @@
   {:else}
     <div class="placeholder-character-full">
       <span class="emoji-large">🐕</span>
+      {#if showReaction}
+        <div class="reaction-bubble">{reactionText}</div>
+      {/if}
     </div>
   {/if}
 </div>
@@ -404,5 +445,47 @@
   .settings-link-center:hover {
     color: #a855f7;
     text-decoration: underline;
+  }
+
+  .reaction-bubble {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    white-space: nowrap;
+    z-index: 10;
+    border: 1px solid rgba(147, 51, 234, 0.4);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5),
+                0 0 20px rgba(147, 51, 234, 0.2);
+    animation: reaction-pop 2.5s ease-out forwards;
+    pointer-events: none;
+  }
+
+  @keyframes reaction-pop {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, -30%) scale(0.8);
+    }
+    10% {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+    20% {
+      transform: translate(-50%, -50%) scale(1);
+    }
+    75% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-50%, -70%) scale(0.9);
+    }
   }
 </style>

@@ -4,6 +4,7 @@
   import { socket } from '$lib/stores/socket';
   import { nightModeInfo, temporarilyDisableDim, manuallyEnableDim } from '$lib/stores/nightmode';
   import { scrambleMode, scrambleText, toggleScramble } from '$lib/stores/scramble';
+  import { playHabitComplete, playHabitReset } from '$lib/stores/sounds';
   import { format, isSameDay } from 'date-fns';
 
   interface HabitEntry {
@@ -238,14 +239,17 @@
     // Create entirely new object to trigger reactivity
     habitEntries = { ...habitEntries, [habitId]: newEntries };
 
-    // Trigger celebration animation if habit is now complete
+    // Trigger celebration animation and sound if habit is now complete
     if (willBeComplete && !isResetting) {
+      playHabitComplete();
       celebratingHabits.add(habitId);
       celebratingHabits = celebratingHabits;
       setTimeout(() => {
         celebratingHabits.delete(habitId);
         celebratingHabits = celebratingHabits;
       }, 600);
+    } else if (isResetting) {
+      playHabitReset();
     }
 
     // Sync with backend
