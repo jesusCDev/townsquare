@@ -1,21 +1,13 @@
 #!/bin/bash
-# Toggle fullscreen (F11) on all Firefox windows
+# Toggle fullscreen (F11) on the focused window using ydotool (Wayland-compatible)
 # Usage: ./scripts/fullscreen.sh
 # Alias: alias fs='~/developer/townsquare/scripts/fullscreen.sh'
+#
+# Note: ydotool sends input at the kernel level, so it targets the currently
+# focused window. If you have two Firefox windows, run this script once per window
+# (click/focus the other window in between).
 
-export DISPLAY=:0
+# F11 keycode = 87, :1 = press, :0 = release
+sudo ydotool key 87:1 87:0
 
-WINDOW_IDS=$(xdotool search --class Firefox 2>/dev/null)
-
-if [ -z "$WINDOW_IDS" ]; then
-  echo "No Firefox windows found"
-  exit 1
-fi
-
-COUNT=0
-for WID in $WINDOW_IDS; do
-  xdotool key --window "$WID" F11
-  COUNT=$((COUNT + 1))
-done
-
-echo "Toggled fullscreen on $COUNT Firefox window(s)"
+echo "Sent F11 to focused window"

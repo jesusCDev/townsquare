@@ -6,42 +6,36 @@ import { logger } from '../lib/logger.js';
 const execAsync = promisify(exec);
 
 export const systemRoutes: FastifyPluginAsync = async (app) => {
-  // Toggle fullscreen (F11) on all Firefox windows via xdotool
+  // Toggle fullscreen (F11) on the focused window via ydotool (Wayland-compatible)
+  // F11 keycode = 87, :1 = press, :0 = release
   app.post('/api/system/fullscreen', async (request, reply) => {
     try {
-      // Find all Firefox windows and send F11 to each
-      const { stdout } = await execAsync(
-        'DISPLAY=:0 xdotool search --class Firefox',
-      );
+      await execAsync('sudo ydotool key 87:1 87:0');
 
-      const windowIds = stdout.trim().split('\n').filter(Boolean);
-
-      if (windowIds.length === 0) {
-        return reply.code(404).send({
-          success: false,
-          message: 'No Firefox windows found',
-        });
-      }
-
-      // Send F11 to each Firefox window
-      for (const wid of windowIds) {
-        await execAsync(`DISPLAY=:0 xdotool key --window ${wid} F11`);
-      }
-
-      logger.info({ windowCount: windowIds.length }, 'Toggled fullscreen on Firefox windows');
+      logger.info('Sent F11 via ydotool');
 
       return {
         success: true,
-        message: `Toggled fullscreen on ${windowIds.length} Firefox window(s)`,
-        windows: windowIds.length,
+        message: 'Sent F11 to focused window',
       };
     } catch (error: any) {
       logger.error({ error: error.message }, 'Failed to toggle fullscreen');
       return reply.code(500).send({
         success: false,
-        message: 'Failed to toggle fullscreen. Is xdotool installed?',
+        message: 'Failed to toggle fullscreen. Is ydotool installed?',
         error: error.message,
       });
     }
+  });
+
+  // Reload all connected browser pages via socket event
+  app.post('/api/system/refresh', async (request, reply) => {
+    app.io.emit('system:refresh');
+    logger.info('Broadcasted refresh to all clients');
+
+    return {
+      success: true,
+      message: 'Refresh signal sent to all connected clients',
+    };
   });
 };

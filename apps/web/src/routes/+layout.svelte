@@ -31,7 +31,18 @@
     // Periodic refresh every 45 seconds to prevent ghosting buildup
     refreshInterval = setInterval(triggerRefresh, 45000);
 
+    // Listen for remote refresh signal
+    const unsubscribe = socket.subscribe(($socket) => {
+      if ($socket) {
+        $socket.off('system:refresh');
+        $socket.on('system:refresh', () => {
+          window.location.reload();
+        });
+      }
+    });
+
     return () => {
+      unsubscribe();
       $socket?.disconnect();
       if (refreshInterval) clearInterval(refreshInterval);
     };
