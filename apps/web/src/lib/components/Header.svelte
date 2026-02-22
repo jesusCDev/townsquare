@@ -110,6 +110,18 @@
     }
   }
 
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error('Error entering fullscreen:', err);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  }
+
   $: timeStr = formatTime(currentTime, $timeFormat);
   $: dateStr = format(currentTime, 'EEEE, MMMM d');
   $: memoryUsedPercent = health?.system?.memory
@@ -203,6 +215,9 @@
       </div>
     {/if}
     <div class="version">v{health?.version || '1.0.0'}</div>
+    <button class="fullscreen-btn" on:click={toggleFullscreen} title="Toggle fullscreen">
+      ⛶
+    </button>
     <a href="/admin" class="settings-link">⚙️ Settings</a>
   </div>
 </div>
@@ -421,6 +436,26 @@
   .version {
     font-size: 0.7rem;
     color: var(--text-tertiary);
+  }
+
+  .fullscreen-btn {
+    background: none;
+    border: none;
+    color: var(--accent-primary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.2s;
+    padding: 0.25rem;
+    line-height: 1;
+  }
+
+  .fullscreen-btn:hover {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+
+  .fullscreen-btn:active {
+    transform: scale(0.95);
   }
 
   .settings-link {
