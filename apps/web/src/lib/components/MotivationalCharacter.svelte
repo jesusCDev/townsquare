@@ -60,16 +60,23 @@
   }
 
   async function generateShibaImage(forceGenerate = false) {
-    if (loading) return;
+    console.log('🐕 generateShibaImage called, forceGenerate:', forceGenerate, 'loading:', loading);
+
+    if (loading) {
+      console.log('🐕 Already loading, skipping...');
+      return;
+    }
 
     const today = format(new Date(), 'yyyy-MM-dd');
     healthScore = calculateHealthScore();
     const mood = getMoodFromHealthScore(healthScore);
     currentMood = mood;
 
+    console.log('🐕 Health score:', healthScore, 'Mood:', mood, 'Habit stats:', habitStats);
+
     // Check if we have a cached image for this mood from today
     if (!forceGenerate && cachedImages[mood] && cachedImages[mood].date === today) {
-      console.log(`Using cached ${mood} Shiba from today`);
+      console.log(`🐕 Using cached ${mood} Shiba from today`);
       imageUrl = cachedImages[mood].url;
       updateMessage();
       return;
@@ -77,9 +84,15 @@
 
     // If forcing regenerate, clear the cached image for this mood
     if (forceGenerate && cachedImages[mood]) {
+      console.log('🐕 Force regenerate: clearing cached image for mood:', mood);
       delete cachedImages[mood];
+      // Update localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('shibaCache', JSON.stringify(cachedImages));
+      }
     }
 
+    console.log('🐕 Starting image generation...');
     loading = true;
     error = null;
 
@@ -202,9 +215,32 @@
       <p>Checking on your Shiba...</p>
     </div>
   {:else if imageUrl}
-    <div class="character-image-full" on:click={() => generateShibaImage(true)} role="button" tabindex="0" title="Click to regenerate Shiba image">
+    <div
+      class="character-image-full"
+      on:click={() => {
+        console.log('Shiba tile clicked, regenerating...');
+        generateShibaImage(true);
+      }}
+      on:keydown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          console.log('Shiba tile activated via keyboard, regenerating...');
+          generateShibaImage(true);
+        }
+      }}
+      role="button"
+      tabindex="0"
+      title="Click to regenerate Shiba image"
+    >
       <img src={imageUrl} alt="Your Shiba Inu reflecting your habit progress" />
-      <button class="regenerate-btn" on:click|stopPropagation={() => generateShibaImage(true)} title="Generate new image">
+      <button
+        class="regenerate-btn"
+        on:click|stopPropagation={() => {
+          console.log('Regenerate button clicked');
+          generateShibaImage(true);
+        }}
+        title="Generate new image"
+      >
         🔄
       </button>
     </div>
