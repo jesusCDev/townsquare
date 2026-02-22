@@ -358,9 +358,29 @@
   <div class="mobile-header">
     <div class="date-stats">
       <div class="date font-mono">{format(currentTime, 'EEEE, MMMM d')}</div>
-      <div class="completed-stats font-mono">
-        <span class="completed-count">{$habits.filter(h => isComplete(h.id)).length}/{$habits.length}</span>
-        <span class="completed-label">completed</span>
+      <div class="header-right">
+        <div class="completed-stats font-mono">
+          <span class="completed-count">{$habits.filter(h => isComplete(h.id)).length}/{$habits.length}</span>
+        </div>
+        <button
+          class="header-icon-btn"
+          class:active={$nightModeInfo.isActive}
+          on:click|stopPropagation={() => {
+            if ($nightModeInfo.isActive) {
+              temporarilyDisableDim();
+              showNotification('Dim mode disabled');
+            } else {
+              manuallyEnableDim();
+              showNotification('Dim mode enabled');
+            }
+          }}
+          aria-label="Toggle dim mode"
+        >🌙</button>
+        <button
+          class="header-icon-btn"
+          on:click={toggleFullscreen}
+          aria-label="Toggle fullscreen"
+        >⛶</button>
       </div>
     </div>
   </div>
@@ -409,35 +429,6 @@
     {/if}
   </div>
 
-  <!-- Mode Controls -->
-  <div class="mode-controls">
-    <button
-      class="mode-btn"
-      class:active={$nightModeInfo.isActive}
-      on:click={(e) => {
-        e.stopPropagation();
-        if ($nightModeInfo.isActive) {
-          temporarilyDisableDim();
-          showNotification('Dim mode disabled');
-        } else {
-          manuallyEnableDim();
-          showNotification('Dim mode enabled');
-        }
-      }}
-    >
-      <span class="mode-icon">🌙</span>
-      <span class="mode-label">Dim</span>
-    </button>
-
-    <button
-      class="mode-btn"
-      on:click={toggleFullscreen}
-    >
-      <span class="mode-icon">⛶</span>
-      <span class="mode-label">Full</span>
-    </button>
-  </div>
-
   <!-- Toast Notification -->
   {#if showToast}
     <div class="toast" class:show={showToast} class:error={toastType === 'error'}>
@@ -479,10 +470,15 @@
     font-weight: 600;
   }
 
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
   .completed-stats {
     display: flex;
     align-items: baseline;
-    gap: 0.5rem;
   }
 
   .completed-count {
@@ -491,11 +487,28 @@
     color: var(--accent-primary);
   }
 
-  .completed-label {
-    font-size: 0.75rem;
-    color: var(--text-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+  .header-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .header-icon-btn:active {
+    transform: scale(0.92);
+  }
+
+  .header-icon-btn.active {
+    background: rgba(103, 254, 153, 0.15);
+    border-color: rgba(103, 254, 153, 0.4);
   }
 
   .habits-list {
@@ -637,53 +650,6 @@
     }
   }
 
-  /* Mode controls */
-  .mode-controls {
-    display: flex;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    background: rgba(18, 18, 18, 0.95);
-    border-radius: 16px;
-    border: 1px solid var(--glass-border);
-  }
-
-  .mode-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.875rem 1rem;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .mode-btn:active {
-    transform: scale(0.98);
-  }
-
-  .mode-btn.active {
-    background: rgba(103, 254, 153, 0.15);
-    border-color: rgba(103, 254, 153, 0.4);
-    color: var(--accent-primary);
-  }
-
-  .mode-icon {
-    font-size: 1.1rem;
-  }
-
-  .mode-label {
-    font-family: var(--font-mono);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
 
   /* Toast notification */
   .toast {
