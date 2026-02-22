@@ -309,6 +309,7 @@
 
   .timeline-section {
     flex-shrink: 0;
+    margin-top: 0.5rem;
   }
 
   .tiles-row {
