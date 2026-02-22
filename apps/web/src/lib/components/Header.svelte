@@ -415,7 +415,7 @@
   }
 
   .time-main {
-    font-size: clamp(16rem, 40vw, 48rem);
+    font-size: clamp(10rem, 25vw, 32rem);
     font-weight: 200;
     color: rgba(103, 254, 153, 1);
     letter-spacing: -0.02em;
@@ -425,7 +425,7 @@
   }
 
   .time-period {
-    font-size: clamp(6rem, 14vw, 16rem);
+    font-size: clamp(4rem, 10vw, 12rem);
     font-weight: 300;
     color: rgba(103, 254, 153, 0.8);
     letter-spacing: 0.05em;
@@ -433,7 +433,7 @@
     text-shadow: 0 0 60px rgba(103, 254, 153, 0.6),
                  0 0 120px rgba(103, 254, 153, 0.3);
     align-self: flex-end;
-    padding-bottom: clamp(1rem, 4vw, 4rem);
+    padding-bottom: clamp(0.75rem, 2.5vw, 3rem);
   }
 
   .next-alert {

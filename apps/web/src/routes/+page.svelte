@@ -197,6 +197,24 @@
       toggleScramble();
       showNotification(wasEnabled ? 'Scramble mode disabled' : 'Scramble mode enabled');
     }
+
+    // F key - Toggle fullscreen
+    if (event.key === 'f' || event.key === 'F') {
+      event.preventDefault();
+      toggleFullscreen();
+    }
+  }
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error('Error entering fullscreen:', err);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
   }
 
   // Auto-hide cursor after 5 minutes of inactivity
