@@ -91,7 +91,15 @@ export const nightModeInfo = derived(nightModeState, ($state) => ({
 }));
 
 let disableTimer: ReturnType<typeof setTimeout> | null = null;
-let ignoreBroadcast = false;
+
+// Broadcast dim state to other clients via server API (not socket)
+function broadcastDim(enabled: boolean) {
+  fetch('/api/system/dim', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  }).catch(err => console.error('[DIM] broadcast failed:', err));
+}
 
 export function temporarilyDisableDim(minutes?: number) {
   const currentState = get(nightModeState);
@@ -111,11 +119,7 @@ export function temporarilyDisableDim(minutes?: number) {
       disableTimer = null;
     }
 
-    // Broadcast to other clients
-    ignoreBroadcast = true;
-    const $socket = get(socket);
-    $socket?.emit('nightmode:manual', { enabled: false });
-    setTimeout(() => { ignoreBroadcast = false; }, 100);
+    broadcastDim(false);
     return;
   }
 
@@ -130,9 +134,7 @@ export function temporarilyDisableDim(minutes?: number) {
     disableUntil,
   }));
 
-  // Broadcast to other clients
-  const $socket = get(socket);
-  $socket?.emit('nightmode:manual', { enabled: false });
+  broadcastDim(false);
 
   if (disableTimer) clearTimeout(disableTimer);
 
@@ -173,11 +175,7 @@ export function manuallyEnableDim() {
       disableTimer = null;
     }
 
-    // Broadcast to other clients
-    ignoreBroadcast = true;
-    const $socket = get(socket);
-    $socket?.emit('nightmode:manual', { enabled: true });
-    setTimeout(() => { ignoreBroadcast = false; }, 100);
+    broadcastDim(true);
     return;
   }
 
@@ -192,9 +190,7 @@ export function manuallyEnableDim() {
     disableUntil,
   }));
 
-  // Broadcast to other clients
-  const $socket = get(socket);
-  $socket?.emit('nightmode:manual', { enabled: true });
+  broadcastDim(true);
 
   // Clear any existing timer
   if (disableTimer) {
@@ -215,7 +211,7 @@ export function manuallyEnableDim() {
   }, MANUAL_TIMEOUT_MINUTES * 60 * 1000);
 }
 
-// Listen for night mode updates from server and other clients
+// Listen for night mode updates from server
 socket.subscribe(($socket) => {
   if ($socket) {
     $socket.off('nightmode:toggle');
@@ -228,11 +224,9 @@ socket.subscribe(($socket) => {
       }));
     });
 
-    // Listen for manual dim toggles from other clients
+    // Listen for dim toggles broadcast by the server API
     $socket.on('nightmode:manual', (data: { enabled: boolean }) => {
-      // Ignore our own broadcasts (can bounce back via stale socket connections)
-      if (ignoreBroadcast) return;
-      console.log('[DIM] received nightmode:manual from other client:', data);
+      console.log('[DIM] received nightmode:manual from server:', data);
       if (data.enabled) {
         nightModeState.update(state => ({
           ...state,
@@ -262,21 +256,21 @@ if (typeof window !== 'undefined') {
     .catch(() => {});
   let interactionTimer: ReturnType<typeof setTimeout> | null = null;
   let hasInteracted = false;
-  
+
   const handleInteraction = (event?: Event) => {
     // Ignore D and S keys - they're handled by keyboard shortcuts
     if (event instanceof KeyboardEvent &&
         (event.key === 'd' || event.key === 'D' || event.key === 's' || event.key === 'S')) {
       return;
     }
-    
+
     // Only check once per interaction burst
     if (hasInteracted) return;
     hasInteracted = true;
-    
+
     // Debounce interactions to avoid multiple rapid calls
     if (interactionTimer) clearTimeout(interactionTimer);
-    
+
     interactionTimer = setTimeout(() => {
       hasInteracted = false;
       const state = get(nightModeState);
@@ -289,7 +283,7 @@ if (typeof window !== 'undefined') {
       }
     }, 300);
   };
-  
+
   window.addEventListener('click', handleInteraction);
   window.addEventListener('keydown', handleInteraction);
   window.addEventListener('touchstart', handleInteraction);

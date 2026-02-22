@@ -28,6 +28,18 @@ export const systemRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
+  // Toggle dim mode on all connected clients
+  app.post('/api/system/dim', async (request, reply) => {
+    const { enabled } = request.body as { enabled: boolean };
+    app.io.emit('nightmode:manual', { enabled });
+    logger.info({ enabled }, 'Broadcasted dim mode toggle to all clients');
+
+    return {
+      success: true,
+      message: `Dim mode ${enabled ? 'enabled' : 'disabled'} on all clients`,
+    };
+  });
+
   // Reload all connected browser pages via socket event
   app.post('/api/system/refresh', async (request, reply) => {
     app.io.emit('system:refresh');

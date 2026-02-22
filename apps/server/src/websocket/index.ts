@@ -14,11 +14,7 @@ export function setupWebSocket(io: Server) {
       socket.emit('pong', { timestamp: Date.now() });
     });
 
-    // Relay manual dim mode toggle to all other clients
-    socket.on('nightmode:manual', (data: { enabled: boolean }) => {
-      wsLogger.info({ enabled: data.enabled }, 'Relaying nightmode:manual');
-      socket.broadcast.emit('nightmode:manual', data);
-    });
+    // nightmode:manual is now handled via POST /api/system/dim
   });
 
   wsLogger.info('WebSocket server initialized');
