@@ -97,7 +97,7 @@
 
   // Accordion state for settings sections
   let expandedSections = {
-    display: true,
+    display: false,
     tiles: false,
     ai: false,
     shortcuts: false,
