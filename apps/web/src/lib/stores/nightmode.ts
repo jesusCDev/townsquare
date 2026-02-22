@@ -91,6 +91,7 @@ export const nightModeInfo = derived(nightModeState, ($state) => ({
 }));
 
 let disableTimer: ReturnType<typeof setTimeout> | null = null;
+let ignoreBroadcast = false;
 
 export function temporarilyDisableDim(minutes?: number) {
   const currentState = get(nightModeState);
@@ -111,8 +112,10 @@ export function temporarilyDisableDim(minutes?: number) {
     }
 
     // Broadcast to other clients
+    ignoreBroadcast = true;
     const $socket = get(socket);
     $socket?.emit('nightmode:manual', { enabled: false });
+    setTimeout(() => { ignoreBroadcast = false; }, 100);
     return;
   }
 
@@ -171,8 +174,10 @@ export function manuallyEnableDim() {
     }
 
     // Broadcast to other clients
+    ignoreBroadcast = true;
     const $socket = get(socket);
     $socket?.emit('nightmode:manual', { enabled: true });
+    setTimeout(() => { ignoreBroadcast = false; }, 100);
     return;
   }
 
@@ -225,6 +230,9 @@ socket.subscribe(($socket) => {
 
     // Listen for manual dim toggles from other clients
     $socket.on('nightmode:manual', (data: { enabled: boolean }) => {
+      // Ignore our own broadcasts (can bounce back via stale socket connections)
+      if (ignoreBroadcast) return;
+      console.log('[DIM] received nightmode:manual from other client:', data);
       if (data.enabled) {
         nightModeState.update(state => ({
           ...state,
