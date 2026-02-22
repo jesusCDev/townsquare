@@ -417,21 +417,21 @@
   .time-main {
     font-size: clamp(10rem, 25vw, 32rem);
     font-weight: 200;
-    color: rgba(103, 254, 153, 1);
+    color: rgba(103, 254, 153, 0.4);
     letter-spacing: -0.02em;
     line-height: 1;
-    text-shadow: 0 0 80px rgba(103, 254, 153, 0.8),
-                 0 0 160px rgba(103, 254, 153, 0.4);
+    text-shadow: 0 0 30px rgba(103, 254, 153, 0.3),
+                 0 0 60px rgba(103, 254, 153, 0.15);
   }
 
   .time-period {
     font-size: clamp(4rem, 10vw, 12rem);
     font-weight: 300;
-    color: rgba(103, 254, 153, 0.8);
+    color: rgba(103, 254, 153, 0.35);
     letter-spacing: 0.05em;
     line-height: 1;
-    text-shadow: 0 0 60px rgba(103, 254, 153, 0.6),
-                 0 0 120px rgba(103, 254, 153, 0.3);
+    text-shadow: 0 0 20px rgba(103, 254, 153, 0.25),
+                 0 0 40px rgba(103, 254, 153, 0.1);
     align-self: flex-end;
     padding-bottom: clamp(0.75rem, 2.5vw, 3rem);
   }
