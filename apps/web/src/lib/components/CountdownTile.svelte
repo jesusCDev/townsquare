@@ -121,9 +121,11 @@
       <p>No countdown set</p>
     </div>
   {:else}
-    {@const days = getDaysRemaining(primaryCountdown.targetDate)}
+    {@const days = differenceInDays(parseISO(primaryCountdown.targetDate), now)}
     {@const status = getStatus(days)}
-    {@const progress = getProgressPercentage(primaryCountdown)}
+    {@const totalDays = primaryCountdown.createdAt ? differenceInDays(parseISO(primaryCountdown.targetDate), parseISO(primaryCountdown.createdAt)) : 0}
+    {@const daysPassed = primaryCountdown.createdAt ? differenceInDays(now, parseISO(primaryCountdown.createdAt)) : 0}
+    {@const progress = totalDays <= 0 ? 100 : Math.min(Math.max((daysPassed / totalDays) * 100, 0), 100)}
     <div class="primary-countdown {status}">
       <div class="progress-background" style="--progress: {progress}%; --progress-color: {primaryCountdown.color}"></div>
       <div class="countdown-content">
@@ -159,7 +161,7 @@
     {#if additionalCountdowns.length > 0}
       <div class="additional-countdowns">
         {#each additionalCountdowns as countdown (countdown.id)}
-          {@const d = getDaysRemaining(countdown.targetDate)}
+          {@const d = differenceInDays(parseISO(countdown.targetDate), now)}
           <div class="mini-countdown">
             <span class="mini-days">{Math.abs(d)}</span>
             <span class="mini-label">{$scrambleMode ? scrambleText(countdown.label) : countdown.label}</span>
