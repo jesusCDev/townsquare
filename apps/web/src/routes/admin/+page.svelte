@@ -83,6 +83,12 @@
   let autoBackupEnabled = false;
   let autoBackupPath = '';
 
+  // Production sync settings
+  let productionUrl = '';
+  let autoSyncEnabled = false;
+  let lastSyncDate = '';
+  let isSyncing = false;
+
   // OpenAI settings
   let openaiApiKey = '';
 
@@ -108,6 +114,9 @@
     await loadAlerts();
     await loadCountdowns();
     await loadSettings();
+
+    // Check if we should auto-sync from production
+    await checkAutoSync();
   });
 
   async function loadSettings() {
@@ -128,6 +137,9 @@
         showPeriodsMetric = data.settings['daysWon.showPeriods'] !== false;
         autoBackupEnabled = data.settings['backup.autoEnabled'] === true;
         autoBackupPath = data.settings['backup.path'] || '';
+        productionUrl = data.settings['sync.productionUrl'] || '';
+        autoSyncEnabled = data.settings['sync.autoEnabled'] === true;
+        lastSyncDate = data.settings['sync.lastDate'] || '';
         openaiApiKey = data.settings['openai.apiKey'] || '';
         sectionOrder = data.settings['dashboard.sectionOrder'] || ['habits', 'timeline', 'tiles'];
       }
@@ -923,7 +935,7 @@
   async function importBackup(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
-    
+
     if (!file) return;
 
     if (!confirm('This will replace all current data with the backup. Are you sure?')) {
@@ -952,6 +964,64 @@
       alert('Failed to import backup. Make sure the file is valid.');
     } finally {
       input.value = '';
+    }
+  }
+
+  async function syncFromProduction() {
+    if (!productionUrl) {
+      alert('Please enter a production server URL first');
+      return;
+    }
+
+    if (!confirm('This will replace all current data with production data. Are you sure?')) {
+      return;
+    }
+
+    isSyncing = true;
+    try {
+      // Fetch backup from production server
+      const url = productionUrl.endsWith('/') ? productionUrl.slice(0, -1) : productionUrl;
+      const response = await fetch(`${url}/api/backup/export`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch from production: ${response.statusText}`);
+      }
+
+      const backup = await response.json();
+
+      // Import the backup
+      const importResponse = await fetch('/api/backup/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(backup),
+      });
+
+      if (importResponse.ok) {
+        // Update last sync date
+        const today = new Date().toISOString().split('T')[0];
+        await saveSetting('sync.lastDate', today);
+        lastSyncDate = today;
+
+        alert('Production data synced successfully! Refreshing page...');
+        window.location.reload();
+      } else {
+        alert('Failed to import production data');
+      }
+    } catch (error) {
+      console.error('Failed to sync from production:', error);
+      alert(`Failed to sync from production: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      isSyncing = false;
+    }
+  }
+
+  async function checkAutoSync() {
+    if (!autoSyncEnabled || !productionUrl) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    if (lastSyncDate !== today) {
+      console.log('Auto-sync: First load today, syncing from production...');
+      await syncFromProduction();
     }
   }
 </script>
@@ -2123,6 +2193,69 @@
               style="display: none;"
             />
           </label>
+        </div>
+      </div>
+
+      <h2 style="margin-top: 3rem;">Production Data Sync</h2>
+      <p class="description" style="margin-bottom: 1.5rem;">
+        Sync data from your production Raspberry Pi to your local development environment. Perfect for testing with real data without affecting production.
+      </p>
+
+      <div class="setting-group">
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="productionUrl">Production Server URL</label>
+            <p class="description">Full URL to your production server (e.g., http://raspberrypi.local:3000)</p>
+          </div>
+          <div class="setting-control path-control">
+            <input
+              type="text"
+              id="productionUrl"
+              bind:value={productionUrl}
+              placeholder="http://raspberrypi.local:3000"
+              on:change={() => saveSetting('sync.productionUrl', productionUrl)}
+            />
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="autoSyncEnabled">Auto-Sync Daily</label>
+            <p class="description">Automatically import production data on first page load each day. Keeps dev data fresh without manual imports.</p>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                id="autoSyncEnabled"
+                bind:checked={autoSyncEnabled}
+                on:change={() => saveSetting('sync.autoEnabled', autoSyncEnabled)}
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        {#if lastSyncDate}
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="badge">Last synced: {lastSyncDate}</span>
+            </div>
+          </div>
+        {/if}
+
+        <div class="backup-section">
+          <div class="backup-info">
+            <h3>Sync Now</h3>
+            <p class="description">Manually fetch and import data from production server right now.</p>
+          </div>
+          <button
+            class="backup-btn test-btn"
+            on:click={syncFromProduction}
+            disabled={!productionUrl || isSyncing}
+          >
+            {isSyncing ? 'Syncing...' : 'Sync from Production'}
+          </button>
         </div>
       </div>
 

@@ -26,7 +26,6 @@
   let toastMessage = '';
   let toastType: 'success' | 'error' = 'success';
   let showToast = false;
-  let sortedHabitIds: string[] = []; // Fixed order to prevent re-sorting on check
 
   function showNotification(message: string, type: 'success' | 'error' = 'success') {
     toastMessage = message;
@@ -35,6 +34,18 @@
     setTimeout(() => {
       showToast = false;
     }, type === 'error' ? 3000 : 2000);
+  }
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        showNotification(`Error entering fullscreen: ${err.message}`, 'error');
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -100,9 +111,6 @@
     // Always mark entries as loaded, even if no habits exist
     entriesLoaded = true;
 
-    // Compute initial sort order (won't change when habits are checked)
-    computeSortedOrder();
-
     // Update current time every minute and check for day changes
     timeInterval = setInterval(async () => {
       currentTime = new Date();
@@ -127,9 +135,6 @@
             newEntries[habitId] = entries;
           });
           habitEntries = newEntries;
-
-          // Re-sort on day change
-          computeSortedOrder();
         }
       }
     }, 60000);
@@ -341,34 +346,6 @@
     const count = entry?.count || 0;
     return count >= habit.targetCount;
   }
-
-  // Compute sorted order - only called on initial load and explicit refresh
-  function computeSortedOrder() {
-    const sorted = [...$habits].sort((a, b) => {
-      const aComplete = isComplete(a.id);
-      const bComplete = isComplete(b.id);
-      const aProgress = getProgressPercentage(a.id);
-      const bProgress = getProgressPercentage(b.id);
-
-      // Full complete goes to bottom
-      if (aComplete && !bComplete) return 1;
-      if (!aComplete && bComplete) return -1;
-
-      // Both incomplete or both complete: sort by progress (higher first)
-      return bProgress - aProgress;
-    });
-    sortedHabitIds = sorted.map(h => h.id);
-  }
-
-  // Get habits in the fixed sorted order
-  // Reference habitEntries for reactivity (UI updates when entries change)
-  // but don't use it for sorting (order stays fixed)
-  $: sortedHabits = (() => {
-    const _ = habitEntries; // Trigger reactivity on entry changes
-    return sortedHabitIds
-      .map(id => $habits.find(h => h.id === id))
-      .filter((h): h is NonNullable<typeof h> => h !== undefined);
-  })();
 </script>
 
 <svelte:head>
@@ -395,7 +372,7 @@
     {:else if $habits.length === 0}
       <div class="empty">No habits configured</div>
     {:else}
-      {#each sortedHabits as habit (habit.id)}
+      {#each $habits as habit (habit.id)}
         {@const entry = getTodayEntry(habit.id)}
         {@const count = entry?.count || 0}
         {@const streak = calculateStreak(habit.id)}
@@ -450,6 +427,14 @@
     >
       <span class="mode-icon">🌙</span>
       <span class="mode-label">Dim</span>
+    </button>
+
+    <button
+      class="mode-btn"
+      on:click={toggleFullscreen}
+    >
+      <span class="mode-icon">⛶</span>
+      <span class="mode-label">Full</span>
     </button>
   </div>
 
