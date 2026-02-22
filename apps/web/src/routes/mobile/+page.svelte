@@ -360,7 +360,7 @@
       <div class="date font-mono">{format(currentTime, 'EEEE, MMMM d')}</div>
       <div class="header-right">
         <div class="completed-stats font-mono">
-          <span class="completed-count">{$habits.filter(h => isComplete(h.id)).length}/{$habits.length}</span>
+          <span class="completed-count">{$habits.filter(h => { const e = (habitEntries[h.id] || []).find(e => e.date === format(new Date(), 'yyyy-MM-dd')); return (e?.count || 0) >= h.targetCount; }).length}/{$habits.length}</span>
         </div>
         <button
           class="header-icon-btn"
@@ -393,11 +393,13 @@
       <div class="empty">No habits configured</div>
     {:else}
       {#each $habits as habit (habit.id)}
-        {@const entry = getTodayEntry(habit.id)}
+        {@const todayStr = format(new Date(), 'yyyy-MM-dd')}
+        {@const entries = habitEntries[habit.id] || []}
+        {@const entry = entries.find(e => e.date === todayStr) || null}
         {@const count = entry?.count || 0}
+        {@const complete = count >= habit.targetCount}
+        {@const progress = Math.min((count / habit.targetCount) * 100, 100)}
         {@const streak = calculateStreak(habit.id)}
-        {@const progress = getProgressPercentage(habit.id)}
-        {@const complete = isComplete(habit.id)}
         
         <button
           class="habit-card glass"
