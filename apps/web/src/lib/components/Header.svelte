@@ -115,13 +115,27 @@
   $: memoryUsedPercent = health?.system?.memory
     ? ((health.system.memory.used / health.system.memory.total) * 100).toFixed(1)
     : '0';
-  $: timeUntilRestore = $nightModeInfo.disableUntil 
+  $: timeUntilRestore = $nightModeInfo.disableUntil
     ? Math.ceil(($nightModeInfo.disableUntil - currentTime.getTime()) / 1000 / 60)
     : 0;
   $: nextAlert = getNextAlert();
-  $: blurMinutesRemaining = $blurModeInfo.disableAt 
+  $: blurMinutesRemaining = $blurModeInfo.disableAt
     ? Math.max(0, Math.ceil(($blurModeInfo.disableAt - currentTimeForBlur.getTime()) / 1000 / 60))
     : 0;
+
+  // Split time and period (AM/PM) for better dim mode layout
+  $: {
+    const parts = timeStr.match(/^(.*?)(\s*[AP]M)?$/);
+    if (parts) {
+      timePart = parts[1] || timeStr;
+      periodPart = parts[2]?.trim() || '';
+    } else {
+      timePart = timeStr;
+      periodPart = '';
+    }
+  }
+  let timePart = '';
+  let periodPart = '';
 </script>
 
 <div class="header glass">
@@ -159,7 +173,16 @@
   <!-- Center section: Clock -->
   <div class="center-section">
     <div class="date">{dateStr}</div>
-    <div class="time font-mono" class:dim-mode={$nightModeInfo.isActive}>{timeStr}</div>
+    {#if $nightModeInfo.isActive}
+      <div class="time-container dim-mode">
+        <span class="time-main font-mono">{timePart}</span>
+        {#if periodPart}
+          <span class="time-period font-mono">{periodPart}</span>
+        {/if}
+      </div>
+    {:else}
+      <div class="time font-mono">{timeStr}</div>
+    {/if}
     {#if nextAlert}
       <div class="next-alert">
         <span class="alert-icon">⏰</span>
@@ -341,13 +364,39 @@
     z-index: 10000; /* Above dim overlay */
   }
 
-  .time.dim-mode {
+  .time-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    position: relative;
+    z-index: 10000;
+  }
+
+  .time-container.dim-mode {
+    gap: clamp(1rem, 3vw, 3rem);
+  }
+
+  .time-main {
     font-size: clamp(8rem, 20vw, 24rem);
     font-weight: 200;
     color: rgba(103, 254, 153, 1);
+    letter-spacing: -0.02em;
+    line-height: 1;
     text-shadow: 0 0 60px rgba(103, 254, 153, 0.8),
                  0 0 120px rgba(103, 254, 153, 0.4);
-    white-space: nowrap;
+  }
+
+  .time-period {
+    font-size: clamp(3rem, 7vw, 8rem);
+    font-weight: 300;
+    color: rgba(103, 254, 153, 0.8);
+    letter-spacing: 0.05em;
+    line-height: 1;
+    text-shadow: 0 0 40px rgba(103, 254, 153, 0.6),
+                 0 0 80px rgba(103, 254, 153, 0.3);
+    align-self: flex-end;
+    padding-bottom: clamp(0.5rem, 2vw, 2rem);
   }
 
   .next-alert {

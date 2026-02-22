@@ -250,6 +250,7 @@
     gap: 0.25rem;
     position: relative;
     overflow: hidden;
+    padding: 0 1rem;
   }
 
   .progress-background {
@@ -273,6 +274,7 @@
     display: flex;
     flex-direction: row;
     align-items: center;
+    justify-content: center;
     gap: 1.5rem;
     width: 100%;
     height: 100%;
@@ -282,7 +284,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    flex: 0 0 auto;
+    flex-shrink: 0;
   }
 
   .days-number {
@@ -299,7 +301,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    flex: 1;
+    flex-shrink: 0;
     justify-content: center;
   }
 
